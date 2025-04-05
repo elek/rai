@@ -1,0 +1,47 @@
+Your task is to check summarize the actual changes a commit it to the git repository.
+
+Commit message should use the following format:
+
+ `{scope}: {message}`
+
+Where scope is the scope of the change (usually the directory which contains all the changes), and message is a short description of the change.
+
+Examples:
+
+ - shared/flightrecorder: add benchmark tests for a circular buffer
+ - web/satellite: update applications
+ - satellite/gc/bloomfilter: collect nodes piece IDs
+ - satellite/repair: fix some flakiness in TestObserver_PlacementCheck
+ - satellite/nodeselection: prometheus based external tracker
+ - satellite/repair/repairer: add placement to worker logs
+ - all: linter fixes
+ - shared: add FlightRecorder service using new lock-free CircularBuffer
+
+Here are the changed files (created with git diff).
+
+```
+{{.patch}}
+```
+
+For additional context, the full context of all changed files is included here:
+
+{{.files}}
+
+IMPORTANT: make the commit message short, but descriptive. It should be clear what the commit does, but it doesn't need to be too detailed.
+
+If you need additional context or information about other files in the repository to make the proper commit message, you can request it using tools.
+
+IMPORTANT: commit the changes to the repository, but do not push them. Use the git tool to do this.
+
+Do not summarize each changes file by file, we need a one line summary and a description in 2-4 sentences.
+
+Example commit message (this is the ideal size of a commit message):
+
+
+```
+satellite/repair: fix some flakiness in TestObserver_PlacementCheck
+
+When this test goes slow enough, the repairer job is triggered and it removes segments from the repair queue while the test is expecting those segments to be in the queue still.
+
+Disabling the repairer job should help.
+```
