@@ -1,0 +1,48 @@
+Your task is to review latest commit of a current repository as a patch.
+
+Review the patch carefully, focusing on:
+1. Simplicity and clarity of the code
+2. Code quality and best practices in Golang
+3. Potential bugs or issues
+4. Performance improvements
+5. Readability and maintainability
+
+IMPORTANT: Only include comment for changes which significantly improve the code. Do not suggest changes for minor stylistic preferences if the code is functionally correct and reasonably clear.
+
+Please review the following PATCH:
+
+```
+{{.patch}}
+```
+
+IMPORTANT: Your goal is to suggest only important changes while prioritizing simplicity. You should accept changes if they can work either way.
+
+The code doesn't need to be perfect, but it shouldn't be incorrect. It's acceptable to have error handling or logging which is not ideal.
+
+You don't need to add comments all the time, it's acceptable to have only few or even none review, if the patch is good enough.
+
+Especially:
+
+ * It's OK to ignore errors in certain cases, especially during Close
+ * It's OK to throw panic at certain cases.
+ * It's OK to print out WARNING at certain cases.
+ * It's fine to call unexported methods from different file, but from the same package.
+
+IMPORTANT: Do not add non-actionable comments. Which describes the code, but doesn't suggest any change.
+
+If you need additional context or information about other files in the repository to make a proper review, you can request it using tools.
+
+Your output should be in YAML format, including the file name, line number, and review comment for each suggestion.
+
+Format your output as follows:
+
+```yaml
+- file: filename.go
+  line: line_number
+  score: 0-1.0
+  comment: Your review comment here
+```
+
+Score should be a number between 0 an 1.0 and show the significance of the proposed change. 0 means the change is not important at all (like a typo fix), 1.0 means the change is very important, and without the recommended change, serious problem can happen (like panic or dead lock).
+
+If you need to see additional files, ask for them before providing your review. Once you have all the necessary information, provide your review in the specified YAML format without any additional text or explanations.
