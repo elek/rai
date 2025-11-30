@@ -3,41 +3,39 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/elek/rai/providers"
-	"github.com/elek/rai/schema"
+
+	"github.com/elek/rai/util"
 	"github.com/pkg/errors"
-	"os"
+	"github.com/tmc/langchaingo/llms"
 )
 
 type Ask struct {
-	providers.WithModel
+	util.WithModel
 	Message string `arg:"" name:"message" help:"Message to send to Claude API"`
 }
 
 func (a Ask) Run() error {
 	ctx := context.Background()
-	cv := &schema.Conversation{
-		Messages: []schema.Message{
-			{
-				Role:    "user",
-				Content: a.Message,
-			},
-		},
-	}
-
-	impl, model, err := a.CreateModel()
+	llm, err := a.CreateModel(ctx)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	msgs, usage, err := impl.Invoke(ctx, model, cv, nil)
+	input := []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, a.Message),
+	}
+
+	_, err = llm.GenerateContent(
+		ctx,
+		input,
+		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+			fmt.Print(string(chunk))
+			return nil
+		}),
+	)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	for _, msg := range msgs {
-		fmt.Println(msg.Content)
-	}
-	_, _ = fmt.Fprint(os.Stderr, usage)
 	return nil
 }

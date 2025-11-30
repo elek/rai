@@ -3,32 +3,34 @@ package console
 import (
 	"context"
 	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/elek/rai/providers"
-	"github.com/elek/rai/schema"
+	"github.com/elek/rai/util"
+	"github.com/pkg/errors"
+	"github.com/tmc/langchaingo/llms"
 )
 
 type Run struct {
-	providers.WithModel
+	util.WithModel
 }
 
 func (a Run) Run() error {
 
-	c := &schema.Conversation{}
+	var messageHistory []llms.MessageContent
 
-	impl, model, err := a.CreateModel()
+	ctx := context.Background()
+
+	llm, err := a.CreateModel(ctx)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
-	ix := 0
 
 	var history []string
 	for {
-		input := NewInput(fmt.Sprintf("%s(%d)", model.Model, len(c.Messages)), history)
+		input := NewInput(fmt.Sprintf("%s(%d)", llm.Name, len(messageHistory)), history)
 		input.AddAction(tea.KeyCtrlL, func() tea.Cmd {
-			c.Messages = []schema.Message{}
+			messageHistory = messageHistory[:0]
 			input.textinput.Text = ""
-			ix = 0
 			return tea.Quit
 		})
 		app := tea.NewProgram(input)
@@ -48,38 +50,26 @@ func (a Run) Run() error {
 			continue
 		}
 		history = append(history, query)
-		c.Messages = append(c.Messages, schema.Message{
-			Role:    "user",
-			Content: query,
-		})
-		ix = printMessages(c.Messages, ix)
-
-		ctx := context.Background()
-
-		messages, _, err := impl.Invoke(ctx, model, c, nil)
+		messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, query))
+		fmt.Println()
+		resp, err := llm.GenerateContent(
+			ctx,
+			messageHistory,
+			llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+				fmt.Print(string(chunk))
+				return nil
+			}),
+		)
 		if err != nil {
-			fmt.Println(err.Error())
-			messages = append(messages, schema.Message{
-				Role:    "error",
-				Content: err.Error(),
-			})
-
+			return errors.WithStack(err)
 		}
 
-		for _, msg := range messages {
-			c.Messages = append(c.Messages, msg)
+		for _, choice := range resp.Choices {
+			if choice.Content != "" {
+				messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeAI, choice.Content))
+			}
 		}
-		ix = printMessages(c.Messages, ix)
 
 	}
 
-}
-
-func printMessages(messages []schema.Message, ix int) int {
-	fmt.Println(ix, len(messages))
-	for ix < len(messages) {
-		fmt.Println(messages[ix].Role + ": " + messages[ix].Content)
-		ix++
-	}
-	return ix
 }

@@ -1,0 +1,11 @@
+Hello, {{ name }}!
+
+{% block system %}
+System message: {{ system_message }}
+{% endblock %}
+
+{% shell %}
+#!/usr/bin/env bash
+echo "foobar"
+{% endshell %}
+Prompt body: {{ prompt_body }}
