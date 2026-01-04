@@ -21,6 +21,6 @@ func main() {
 	ktx := kong.Parse(&cli, kong.Configuration(kongyaml.Loader, "~/.config/rai/config.yaml"))
 	err := ktx.Run()
 	if err != nil {
-		log.Fatalf("%+v", err)
+		log.Fatalf("%++v", err)
 	}
 }

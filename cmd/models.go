@@ -1,30 +1,21 @@
 package cmd
 
 import (
-	"context"
-	"fmt"
-
-	"github.com/elek/rai/util"
-	"github.com/pkg/errors"
+	"github.com/elek/catwalk-open/pkg/providers"
 )
 
 type Models struct {
-	util.WithModel
+	Provider string `arg:"" optional:"" help:"The provider to list models for."`
 }
 
 func (l *Models) Run() error {
-	ctx := context.Background()
-	model, err := l.WithModel.CreateModel(ctx)
-	if err != nil {
-		return errors.WithStack(err)
+	for _, provider := range providers.GetAll() {
+		if l.Provider != "" && provider.Name != l.Provider {
+			continue
+		}
+		for _, model := range provider.Models {
+			println(string(provider.Type) + ": " + model.ID)
+		}
 	}
-	if model.Lister == nil {
-		fmt.Println("model list is not implemented")
-		return nil
-	}
-	for _, name := range model.Lister() {
-		fmt.Println(name)
-	}
-
 	return nil
 }

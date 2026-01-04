@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/flosch/pongo2"
 	"github.com/pkg/errors"
@@ -11,6 +12,7 @@ import (
 
 func init() {
 	pongo2.RegisterTag("shell", shellFilter)
+	pongo2.RegisterTag("include", includeTag)
 }
 
 func shellFilter(doc *pongo2.Parser, start *pongo2.Token, arguments *pongo2.Parser) (pongo2.INodeTag, *pongo2.Error) {
@@ -81,6 +83,63 @@ func (node *tagShellNode) Execute(ctx *pongo2.ExecutionContext, writer pongo2.Te
 
 	// Write the output to the template
 	writer.WriteString(string(output))
+
+	return nil
+}
+
+func includeTag(doc *pongo2.Parser, start *pongo2.Token, arguments *pongo2.Parser) (pongo2.INodeTag, *pongo2.Error) {
+	includeNode := &tagIncludeNode{}
+
+	// Parse the file path argument
+	if arguments.Remaining() == 0 {
+		return nil, arguments.Error("include tag requires a file path argument", nil)
+	}
+
+	// Get the file path expression
+	filePathExpr, err := arguments.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+	includeNode.filePath = filePathExpr
+
+	// Check if there are unexpected additional arguments
+	if arguments.Remaining() > 0 {
+		return nil, arguments.Error("include tag takes only one argument (file path)", nil)
+	}
+
+	return includeNode, nil
+}
+
+type tagIncludeNode struct {
+	filePath pongo2.IEvaluator
+}
+
+func (node *tagIncludeNode) Execute(ctx *pongo2.ExecutionContext, writer pongo2.TemplateWriter) *pongo2.Error {
+	// Evaluate the file path expression
+	filePathValue, err := node.filePath.Evaluate(ctx)
+	if err != nil {
+		return err
+	}
+
+	filePath := filePathValue.String()
+	if filePath == "" {
+		return ctx.Error("include tag requires a non-empty file path", nil)
+	}
+
+	// Convert relative paths to absolute paths
+	absPath, osErr := filepath.Abs(filePath)
+	if osErr != nil {
+		return ctx.Error(osErr.Error(), nil)
+	}
+
+	// Read the file content
+	content, osErr := os.ReadFile(absPath)
+	if osErr != nil {
+		return ctx.Error(osErr.Error(), nil)
+	}
+
+	// Write the content to the template
+	writer.WriteString(string(content))
 
 	return nil
 }

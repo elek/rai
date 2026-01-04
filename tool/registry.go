@@ -1,9 +1,9 @@
 package tool
 
 import (
-	"reflect"
+	"context"
 
-	"github.com/tmc/langchaingo/llms"
+	"charm.land/fantasy"
 )
 
 type ToolDef struct {
@@ -12,59 +12,50 @@ type ToolDef struct {
 	Callback    any
 }
 
-func AllTools() (res []ToolDef) {
-	res = append(res, ToolDef{
-		Name:        "cat",
-		Description: "Read file content with optional offset and line limits",
-		Callback:    Cat,
+func AllTools() (res []fantasy.AgentTool) {
+	git := fantasy.NewAgentTool[GitInput]("git", "Execute any git command in the local repository", func(ctx context.Context, input GitInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+		res := Git(input)
+		return fantasy.ToolResponse{
+			Content: res,
+			Type:    "text",
+		}, nil
 	})
-	res = append(res, ToolDef{
-		Name:        "files",
-		Description: "List files in a directory, with options for recursive listing and pattern matching",
-		Callback:    ListFiles,
+	res = append(res, git)
+
+	cat := fantasy.NewAgentTool[CatInput]("cat", "Read file content with optional offset and line limits", func(ctx context.Context, input CatInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+		res := Cat(input)
+		return fantasy.ToolResponse{
+			Content: res,
+			Type:    "text",
+		}, nil
 	})
-	res = append(res, ToolDef{
-		Name:        "git",
-		Description: "Execute any git command in the local repository",
-		Callback:    Git,
+	res = append(res, cat)
+
+	files := fantasy.NewAgentTool[FileListInput]("files", "List files in a directory, with options for recursive listing and pattern matching", func(ctx context.Context, input FileListInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+		res := ListFiles(input)
+		return fantasy.ToolResponse{
+			Content: res,
+			Type:    "text",
+		}, nil
 	})
+	res = append(res, files)
 
-	return res
-}
+	create := fantasy.NewAgentTool[CreateInput]("create", "Create a file with the specified content and path ", func(ctx context.Context, input CreateInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+		res, err := Create(input)
+		return fantasy.ToolResponse{
+			Content: res,
+			Type:    "text",
+		}, err
+	})
+	res = append(res, create)
 
-func AsFunction(tools []ToolDef) (res []llms.Tool) {
-	for _, t := range tools {
-
-		properties := map[string]any{}
-		ProcessParams(t.Callback, func(name string, t reflect.Type, desc string) {
-			typeStr := "string"
-			switch t {
-			case reflect.TypeOf(int(0)), reflect.TypeOf(int8(0)), reflect.TypeOf(int16(0)), reflect.TypeOf(int32(0)), reflect.TypeOf(int64(0)):
-				typeStr = "integer"
-			case reflect.TypeOf(true):
-				typeStr = "boolean"
-			case reflect.TypeOf(""):
-				typeStr = "string"
-			default:
-				panic("unsupported type " + t.String())
-			}
-			properties[name] = map[string]any{
-				"type":        typeStr,
-				"description": desc,
-			}
-		})
-
-		res = append(res, llms.Tool{
-			Type: "function",
-			Function: &llms.FunctionDefinition{
-				Name:        t.Name,
-				Description: t.Description,
-				Parameters: map[string]any{
-					"type":       "object",
-					"properties": properties,
-				},
-			},
-		})
-	}
+	insert := fantasy.NewAgentTool[InsertInput]("insert", "Insert additional content to a file from a specific line", func(ctx context.Context, input InsertInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+		res, err := Insert(input)
+		return fantasy.ToolResponse{
+			Content: res,
+			Type:    "text",
+		}, err
+	})
+	res = append(res, insert)
 	return res
 }

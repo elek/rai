@@ -2,37 +2,28 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/elek/rai/util"
+	"github.com/elek/rai/llm"
 	"github.com/pkg/errors"
-	"github.com/tmc/langchaingo/llms"
 )
 
 type Ask struct {
-	util.WithModel
-	Message string `arg:"" name:"message" help:"Message to send to Claude API"`
+	llm.WithModel
+	Message   string `arg:"" name:"message" help:"Message to send to Claude API"`
+	WithTools bool   `help:"Enable all tools for the agent"`
 }
 
 func (a Ask) Run() error {
 	ctx := context.Background()
-	llm, err := a.CreateModel(ctx)
+
+	model, err := a.CreateModel(ctx)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	input := []llms.MessageContent{
-		llms.TextParts(llms.ChatMessageTypeHuman, a.Message),
-	}
+	e := llm.NewExecutor(model)
 
-	_, err = llm.GenerateContent(
-		ctx,
-		input,
-		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-			fmt.Print(string(chunk))
-			return nil
-		}),
-	)
+	_, err = e.ExecPrompt(ctx, "", "", a.Message, nil)
 	if err != nil {
 		return errors.WithStack(err)
 	}
