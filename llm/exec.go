@@ -5,22 +5,23 @@ import (
 	"fmt"
 
 	"charm.land/fantasy"
+	"github.com/elek/rai/config"
 	"github.com/pkg/errors"
 )
 
-type AgentCallback func(ctx context.Context, model string, system string, prompt string, tools []fantasy.AgentTool) (string, error)
+type AgentCallback func(ctx context.Context, model config.Model, system string, prompt string, tools []fantasy.AgentTool) (string, error)
 
 type Executor struct {
-	model fantasy.LanguageModel
+	cfg config.Config
 }
 
-func NewExecutor(model fantasy.LanguageModel) *Executor {
+func NewExecutor(cfg config.Config) *Executor {
 	return &Executor{
-		model: model,
+		cfg: cfg,
 	}
 }
 
-func (e *Executor) ExecPrompt(ctx context.Context, model string, system string, prompt string, tools []fantasy.AgentTool) (string, error) {
+func (e *Executor) ExecPrompt(ctx context.Context, mdl config.Model, system string, prompt string, tools []fantasy.AgentTool) (string, error) {
 	var opts []fantasy.AgentOption
 
 	opts = append(opts, fantasy.WithTools(tools...))
@@ -29,8 +30,21 @@ func (e *Executor) ExecPrompt(ctx context.Context, model string, system string, 
 		opts = append(opts, fantasy.WithSystemPrompt(system))
 	}
 
+	mc := mdl
+	if mc == (config.Model{}) {
+		var found bool
+		mc, found = e.cfg.FindDefaultModel()
+		if !found {
+			return "", errors.New("no default model configured")
+		}
+	}
+	model, err := create(ctx, e.cfg, mc)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
 	agent := fantasy.NewAgent(
-		e.model,
+		model,
 		opts...,
 	)
 
@@ -56,7 +70,8 @@ func (e *Executor) ExecPrompt(ctx context.Context, model string, system string, 
 	return response.Response.Content.Text(), nil
 }
 
-func DryRun(ctx context.Context, model string, system string, prompt string, tools []fantasy.AgentTool) (string, error) {
+func DryRun(ctx context.Context, model config.Model, system string, prompt string, tools []fantasy.AgentTool) (string, error) {
+	fmt.Println("Using model:", model.Provider, model.Model)
 	if system != "" {
 		fmt.Println("--- SYSTEM PROMPT ---")
 		fmt.Println(system)

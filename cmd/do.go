@@ -32,23 +32,24 @@ func (a Do) Run() error {
 
 	promptContent := string(rawPrompt)
 
+	cfg, err := a.WithConfig.GetConfig()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
 	var cb llm.AgentCallback
 	if a.DryRun {
 		cb = llm.DryRun
 	} else {
-		model, err := a.CreateModel(ctx)
-		if err != nil {
-			return errors.WithStack(err)
-		}
 
-		e := llm.NewExecutor(model)
+		e := llm.NewExecutor(cfg)
 		cb = e.ExecPrompt
 	}
 
 	args := map[string]interface{}{
 		"Args": a.Args,
 	}
-	_, err = templates.GoTemplateRender(ctx, promptContent, args, cb)
+	_, err = templates.GoTemplateRender(cfg)(ctx, promptContent, args, cb)
 
 	return errors.WithStack(err)
 }

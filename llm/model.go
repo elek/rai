@@ -32,63 +32,63 @@ type Model struct {
 	Lister func() []string
 }
 
+func create(ctx context.Context, cfg config.Config, model config.Model) (fantasy.LanguageModel, error) {
+	p, found := cfg.FindProvider(model.Provider)
+	if !found {
+		return nil, errors.New("provider couldn't be found: " + model.Provider)
+	}
+
+	switch model.Provider {
+	case "anthropic":
+		provider, err := anthropic.New(anthropic.WithAPIKey(p.Key))
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		model, err := provider.LanguageModel(ctx, model.Model)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		return model, nil
+	case "openrouter":
+		provider, err := openrouter.New(openrouter.WithAPIKey(p.Key))
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		model, err := provider.LanguageModel(ctx, model.Model)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		return model, nil
+	case "google":
+		var ops []google.Option
+		if p.Project != "" && p.Location != "" {
+			ops = append(ops, google.WithVertex(p.Project, p.Location))
+		} else if p.Key != "" {
+			ops = append(ops, google.WithGeminiAPIKey(p.Key))
+		}
+
+		provider, err := google.New(ops...)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		model, err := provider.LanguageModel(ctx, model.Model)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		return model, nil
+	default:
+		fmt.Println(p)
+		return nil, errors.New("unknown provider: " + model.Provider)
+	}
+}
+
 func (w WithModel) CreateModel(ctx context.Context) (fantasy.LanguageModel, error) {
 	cfg, err := w.WithConfig.GetConfig()
 	if err != nil {
 		return nil, errors.New("config couldn't be read")
-	}
-
-	create := func(model config.Model) (fantasy.LanguageModel, error) {
-		p, found := cfg.FindProvider(model.Provider)
-		if !found {
-			return nil, errors.New("provider couldn't be found: " + model.Provider)
-		}
-
-		switch model.Provider {
-		case "anthropic":
-			provider, err := anthropic.New(anthropic.WithAPIKey(p.Key))
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
-
-			model, err := provider.LanguageModel(ctx, model.Model)
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
-			return model, nil
-		case "openrouter":
-			provider, err := openrouter.New(openrouter.WithAPIKey(p.Key))
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
-
-			model, err := provider.LanguageModel(ctx, model.Model)
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
-			return model, nil
-		case "google":
-			var ops []google.Option
-			if p.Project != "" && p.Location != "" {
-				ops = append(ops, google.WithVertex(p.Project, p.Location))
-			} else if p.Key != "" {
-				ops = append(ops, google.WithGeminiAPIKey(p.Key))
-			}
-
-			provider, err := google.New(ops...)
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
-
-			model, err := provider.LanguageModel(ctx, model.Model)
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
-			return model, nil
-		default:
-			fmt.Println(p)
-			return nil, errors.New("unknown provider: " + model.Provider)
-		}
 	}
 
 	if w.Model == "" {
@@ -96,16 +96,16 @@ func (w WithModel) CreateModel(ctx context.Context) (fantasy.LanguageModel, erro
 		if !found {
 			return nil, errors.New("model is not defined, and no default model found")
 		}
-		return create(mod)
+		return create(ctx, cfg, mod)
 	}
 	mod, found := cfg.FindModel(w.Model)
 	if !found {
 		prov, mod, _ := strings.Cut(w.Model, "/")
-		return create(config.Model{
+		return create(ctx, cfg, config.Model{
 			Name:     w.Model,
 			Provider: prov,
 			Model:    mod,
 		})
 	}
-	return create(mod)
+	return create(ctx, cfg, mod)
 }
