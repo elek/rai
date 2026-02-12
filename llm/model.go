@@ -32,7 +32,8 @@ type Model struct {
 	Lister func() []string
 }
 
-func create(ctx context.Context, cfg config.Config, model config.Model) (fantasy.LanguageModel, error) {
+// NewLanguageModel creates a fantasy.LanguageModel from the given config and model definition.
+func NewLanguageModel(ctx context.Context, cfg config.Config, model config.Model) (fantasy.LanguageModel, error) {
 	p, found := cfg.FindProvider(model.Provider)
 	if !found {
 		return nil, errors.New("provider couldn't be found: " + model.Provider)
@@ -96,16 +97,16 @@ func (w WithModel) CreateModel(ctx context.Context) (fantasy.LanguageModel, erro
 		if !found {
 			return nil, errors.New("model is not defined, and no default model found")
 		}
-		return create(ctx, cfg, mod)
+		return NewLanguageModel(ctx, cfg, mod)
 	}
 	mod, found := cfg.FindModel(w.Model)
 	if !found {
 		prov, mod, _ := strings.Cut(w.Model, "/")
-		return create(ctx, cfg, config.Model{
+		return NewLanguageModel(ctx, cfg, config.Model{
 			Name:     w.Model,
 			Provider: prov,
 			Model:    mod,
 		})
 	}
-	return create(ctx, cfg, mod)
+	return NewLanguageModel(ctx, cfg, mod)
 }

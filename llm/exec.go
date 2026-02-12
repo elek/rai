@@ -38,7 +38,7 @@ func (e *Executor) ExecPrompt(ctx context.Context, mdl config.Model, system stri
 			return "", errors.New("no default model configured")
 		}
 	}
-	model, err := create(ctx, e.cfg, mc)
+	model, err := NewLanguageModel(ctx, e.cfg, mc)
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
