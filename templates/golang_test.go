@@ -25,13 +25,22 @@ echo "asd"
 		return "test response", nil
 	}
 
-	response, err := GoTemplateRender(context.Background(), inp, map[string]any{}, callback)
+	cfg := config.Config{}
+	response, err := GoTemplateRender(cfg)(context.Background(), inp, map[string]any{}, callback)
 	require.NoError(t, err)
 	require.Equal(t, "test response", response)
 	require.Equal(t, "\nsystem prompt\n", capturedSystem)
 }
 
 func TestModuleSupport(t *testing.T) {
+	testCfg := config.Config{
+		Models: []config.Model{
+			{Name: "gpt-4", Provider: "openrouter", Model: "gpt-4"},
+			{Name: "claude-3-opus", Provider: "anthropic", Model: "claude-3-opus"},
+			{Name: "gemini-pro", Provider: "google", Model: "gemini-pro"},
+		},
+	}
+
 	tests := []struct {
 		name           string
 		template       string
@@ -40,9 +49,9 @@ func TestModuleSupport(t *testing.T) {
 		expectedPrompt string
 	}{
 		{
-			name: "module with model name",
+			name: "model with model name",
 			template: `
-<module>gpt-4</module>
+<model>gpt-4</model>
 <system>system message</system>
 user prompt here
 `,
@@ -51,7 +60,7 @@ user prompt here
 			expectedPrompt: "\n\n\nuser prompt here\n",
 		},
 		{
-			name: "module with whitespace",
+			name: "model with whitespace",
 			template: `
 <model>
   claude-3-opus
@@ -64,7 +73,7 @@ another prompt
 			expectedPrompt: "\n\n\nanother prompt\n",
 		},
 		{
-			name: "no module specified",
+			name: "no model specified",
 			template: `
 <system>no model system</system>
 no model prompt
@@ -74,9 +83,9 @@ no model prompt
 			expectedPrompt: "\n\nno model prompt\n",
 		},
 		{
-			name: "module only",
+			name: "model only",
 			template: `
-<module>gemini-pro</module>
+<model>gemini-pro</model>
 just a prompt
 `,
 			expectedModel:  "gemini-pro",
@@ -96,10 +105,10 @@ just a prompt
 				return "response", nil
 			}
 
-			response, err := GoTemplateRender(context.Background(), tt.template, map[string]any{}, callback)
+			response, err := GoTemplateRender(testCfg)(context.Background(), tt.template, map[string]any{}, callback)
 			require.NoError(t, err)
 			require.Equal(t, "response", response)
-			require.Equal(t, tt.expectedModel, capturedModel, "model mismatch")
+			require.Equal(t, tt.expectedModel, capturedModel.Name, "model mismatch")
 			require.Equal(t, tt.expectedSystem, capturedSystem, "system mismatch")
 			require.Equal(t, tt.expectedPrompt, capturedPrompt, "prompt mismatch")
 		})
