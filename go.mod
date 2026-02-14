@@ -1,6 +1,6 @@
 module github.com/elek/rai
 
-go 1.25.3
+go 1.25.5
 
 require (
 	charm.land/fantasy v0.3.2
@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.3.4
 	github.com/charmbracelet/x/ansi v0.8.0
-	github.com/elek/catwalk-open v0.0.0-20251202181150-aca863ed747c
+	github.com/elek/catwalk-open v0.0.0-20260214120242-09fff4258025
 	github.com/elek/lspc v0.0.0-20260104200013-f58d88ce0573
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
@@ -49,6 +49,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/anthropic-sdk-go v0.0.0-20251024181547-21d6f3d9a904 // indirect
 	github.com/charmbracelet/lipgloss v1.0.0 // indirect
+	github.com/charmbracelet/x/etag v0.2.0 // indirect
 	github.com/charmbracelet/x/exp/slice v0.0.0-20250904123553-b4e2667e5ad5 // indirect
 	github.com/charmbracelet/x/json v0.2.0 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
