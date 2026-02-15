@@ -33,11 +33,12 @@ func (c Config) FindDefaultModel() (Model, bool) {
 }
 
 type Provider struct {
-	Name     string `yaml:"name"`
-	Type     string `yaml:"type"`
-	Key      string `yaml:"key"`
-	Project  string `yaml:"location"`
-	Location string `yaml:"project"`
+	Name           string `yaml:"name"`
+	Type           string `yaml:"type"`
+	Key            string `yaml:"key"`
+	Project        string `yaml:"location"`
+	Location       string `yaml:"project"`
+	CredentialFile string `yaml:"credential_file"`
 }
 
 type Model struct {

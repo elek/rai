@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"charm.land/fantasy"
@@ -63,9 +64,15 @@ func NewLanguageModel(ctx context.Context, cfg config.Config, model config.Model
 		}
 		return model, nil
 	case "google":
+		if p.CredentialFile != "" {
+			if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", p.CredentialFile); err != nil {
+				return nil, errors.WithStack(err)
+			}
+		}
+
 		var ops []google.Option
 		if p.Project != "" && p.Location != "" {
-			ops = append(ops, google.WithVertex(p.Project, p.Location))
+			ops = append(ops, google.WithVertex(p.Location, p.Project))
 		} else if p.Key != "" {
 			ops = append(ops, google.WithGeminiAPIKey(p.Key))
 		}
