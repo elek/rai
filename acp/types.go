@@ -108,20 +108,54 @@ type ContentBlock struct {
 
 // PromptResult contains the result of the session/prompt request.
 type PromptResult struct {
-	StopReason string `json:"stopReason"`
+	StopReason string     `json:"stopReason"`
+	Usage      *UsageInfo `json:"usage,omitempty"`
+	Meta       *RaiMeta   `json:"rai,omitempty"`
+}
+
+// UsageInfo contains token usage statistics for a prompt.
+type UsageInfo struct {
+	InputTokens         int64 `json:"inputTokens"`
+	OutputTokens        int64 `json:"outputTokens"`
+	TotalTokens         int64 `json:"totalTokens"`
+	CacheCreationTokens int64 `json:"cacheCreationTokens,omitempty"`
+	CacheReadTokens     int64 `json:"cacheReadTokens,omitempty"`
+}
+
+// RaiMeta contains rai-specific metadata including cost and model usage details.
+type RaiMeta struct {
+	TotalCostUSD float64                  `json:"totalCostUsd"`
+	Model        string                   `json:"model"`
+	ModelUsage   map[string]*ModelUsageInfo `json:"modelUsage"`
+}
+
+// ModelUsageInfo contains detailed usage statistics for a specific model.
+type ModelUsageInfo struct {
+	InputTokens              int64   `json:"inputTokens"`
+	OutputTokens             int64   `json:"outputTokens"`
+	CacheCreationInputTokens int64   `json:"cacheCreationInputTokens"`
+	CacheReadInputTokens     int64   `json:"cacheReadInputTokens"`
+	ContextWindow            int64   `json:"contextWindow"`
+	MaxOutputTokens          int64   `json:"maxOutputTokens"`
+	WebSearchRequests        int64   `json:"webSearchRequests"`
+	CostUSD                  float64 `json:"costUSD"`
 }
 
 // Session Update notifications
 
-// SessionUpdateParams contains the parameters for session/update notifications.
+// SessionUpdateNotification contains the top-level params for session/update notifications.
+type SessionUpdateNotification struct {
+	SessionID string              `json:"sessionId"`
+	Update    SessionUpdateParams `json:"update"`
+}
+
+// SessionUpdateParams contains the update data within a session/update notification.
 type SessionUpdateParams struct {
-	SessionID     string         `json:"sessionId"`
-	SessionUpdate string         `json:"sessionUpdate"`
-	Chunk         *ContentBlock  `json:"chunk,omitempty"`
-	ToolCall      *ToolCall      `json:"toolCall,omitempty"`
-	ToolCallID    string         `json:"toolCallId,omitempty"`
-	Status        string         `json:"status,omitempty"`
-	Content       []ContentBlock `json:"content,omitempty"`
+	SessionUpdate string        `json:"sessionUpdate"`
+	Content       *ContentBlock `json:"content,omitempty"`
+	ToolCall      *ToolCall     `json:"toolCall,omitempty"`
+	ToolCallID    string        `json:"toolCallId,omitempty"`
+	Status        string        `json:"status,omitempty"`
 }
 
 // ToolCall represents a tool invocation within a session update notification.

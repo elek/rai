@@ -9,6 +9,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/elek/catwalk-open/providers"
 	"github.com/elek/rai/config"
 	"github.com/elek/rai/llm"
 	"github.com/elek/rai/templates"
@@ -32,12 +33,13 @@ type Session struct {
 
 // Server implements the ACP JSON-RPC 2.0 stdio server.
 type Server struct {
-	cfg      *config.Config
-	parsed   *templates.ParsedTemplate
-	sessions map[string]*Session
-	mu       sync.Mutex
-	out      io.Writer
-	outMu    sync.Mutex
+	cfg          *config.Config
+	parsed       *templates.ParsedTemplate
+	defaultModel *config.Model
+	sessions     map[string]*Session
+	mu           sync.Mutex
+	out          io.Writer
+	outMu        sync.Mutex
 }
 
 // NewServer creates a new ACP server with the given parsed template.
@@ -51,6 +53,11 @@ func NewServer(parsed *templates.ParsedTemplate) *Server {
 // SetConfig sets the configuration for the server.
 func (s *Server) SetConfig(cfg config.Config) {
 	s.cfg = &cfg
+}
+
+// SetDefaultModel sets a default model override for sessions without a template model.
+func (s *Server) SetDefaultModel(m config.Model) {
+	s.defaultModel = &m
 }
 
 // Serve reads JSON-RPC messages from os.Stdin and writes responses to os.Stdout.
@@ -206,10 +213,14 @@ func (s *Server) handlePrompt(req Request) (any, *RPCError) {
 
 	model := sess.Model
 	if model == (config.Model{}) {
-		var found bool
-		model, found = s.cfg.FindDefaultModel()
-		if !found {
-			return nil, &RPCError{Code: -32603, Message: "No default model configured"}
+		if s.defaultModel != nil {
+			model = *s.defaultModel
+		} else {
+			var found bool
+			model, found = s.cfg.FindDefaultModel()
+			if !found {
+				return nil, &RPCError{Code: -32603, Message: "No default model configured"}
+			}
 		}
 	}
 
@@ -232,12 +243,14 @@ func (s *Server) handlePrompt(req Request) (any, *RPCError) {
 			s.sendNotification(Notification{
 				JSONRPC: "2.0",
 				Method:  "session/update",
-				Params: SessionUpdateParams{
-					SessionID:     params.SessionID,
-					SessionUpdate: "agent_message_chunk",
-					Chunk: &ContentBlock{
-						Type: "text",
-						Text: token,
+				Params: SessionUpdateNotification{
+					SessionID: params.SessionID,
+					Update: SessionUpdateParams{
+						SessionUpdate: "agent_message_chunk",
+						Content: &ContentBlock{
+							Type: "text",
+							Text: token,
+						},
 					},
 				},
 			})
@@ -248,14 +261,16 @@ func (s *Server) handlePrompt(req Request) (any, *RPCError) {
 			s.sendNotification(Notification{
 				JSONRPC: "2.0",
 				Method:  "session/update",
-				Params: SessionUpdateParams{
-					SessionID:     params.SessionID,
-					SessionUpdate: "tool_call",
-					ToolCall: &ToolCall{
-						ToolCallID: tcID,
-						Title:      toolCall.ToolName,
-						Kind:       toolKind(toolCall.ToolName),
-						Status:     "in_progress",
+				Params: SessionUpdateNotification{
+					SessionID: params.SessionID,
+					Update: SessionUpdateParams{
+						SessionUpdate: "tool_call",
+						ToolCall: &ToolCall{
+							ToolCallID: tcID,
+							Title:      toolCall.ToolName,
+							Kind:       toolKind(toolCall.ToolName),
+							Status:     "in_progress",
+						},
 					},
 				},
 			})
@@ -268,9 +283,53 @@ func (s *Server) handlePrompt(req Request) (any, *RPCError) {
 		}
 		return nil, &RPCError{Code: -32603, Message: "Agent error: " + err.Error()}
 	}
-	_ = response
 
-	return PromptResult{StopReason: "end_turn"}, nil
+	usage := response.TotalUsage
+
+	modelID := lm.Model()
+	meta := &RaiMeta{
+		Model: modelID,
+		ModelUsage: map[string]*ModelUsageInfo{
+			modelID: {
+				InputTokens:              usage.InputTokens,
+				OutputTokens:             usage.OutputTokens,
+				CacheCreationInputTokens: usage.CacheCreationTokens,
+				CacheReadInputTokens:     usage.CacheReadTokens,
+			},
+		},
+	}
+
+	for _, provider := range providers.GetAll() {
+		if string(provider.ID) != lm.Provider() {
+			continue
+		}
+		for _, m := range provider.Models {
+			if m.ID == modelID {
+				mu := meta.ModelUsage[modelID]
+				mu.ContextWindow = m.ContextWindow
+				mu.MaxOutputTokens = m.DefaultMaxTokens
+				mu.CostUSD = m.CostPer1MIn*float64(usage.InputTokens)/1_000_000 +
+					m.CostPer1MOut*float64(usage.OutputTokens)/1_000_000 +
+					m.CostPer1MInCached*float64(usage.CacheReadTokens)/1_000_000 +
+					m.CostPer1MIn*float64(usage.CacheCreationTokens)/1_000_000
+				meta.TotalCostUSD = mu.CostUSD
+				break
+			}
+		}
+		break
+	}
+
+	return PromptResult{
+		StopReason: "end_turn",
+		Usage: &UsageInfo{
+			InputTokens:         usage.InputTokens,
+			OutputTokens:        usage.OutputTokens,
+			TotalTokens:         usage.TotalTokens,
+			CacheCreationTokens: usage.CacheCreationTokens,
+			CacheReadTokens:     usage.CacheReadTokens,
+		},
+		Meta: meta,
+	}, nil
 }
 
 func (s *Server) sendResponse(resp Response) {

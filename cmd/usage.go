@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"charm.land/fantasy"
-	"github.com/elek/catwalk-open/pkg/providers"
+	"github.com/elek/catwalk-open/providers"
 )
 
 func printUsage(fm fantasy.LanguageModel, usage fantasy.Usage) {

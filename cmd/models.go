@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/elek/catwalk-open/pkg/providers"
+	"github.com/elek/catwalk-open/providers"
 )
 
 type Models struct {
