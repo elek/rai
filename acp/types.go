@@ -151,11 +151,12 @@ type SessionUpdateNotification struct {
 
 // SessionUpdateParams contains the update data within a session/update notification.
 type SessionUpdateParams struct {
-	SessionUpdate string        `json:"sessionUpdate"`
-	Content       *ContentBlock `json:"content,omitempty"`
-	ToolCall      *ToolCall     `json:"toolCall,omitempty"`
-	ToolCallID    string        `json:"toolCallId,omitempty"`
-	Status        string        `json:"status,omitempty"`
+	SessionUpdate     string             `json:"sessionUpdate"`
+	Content           *ContentBlock      `json:"content,omitempty"`
+	ToolCall          *ToolCall          `json:"toolCall,omitempty"`
+	ToolCallID        string             `json:"toolCallId,omitempty"`
+	Status            string             `json:"status,omitempty"`
+	AvailableCommands []AvailableCommand `json:"availableCommands,omitempty"`
 }
 
 // ToolCall represents a tool invocation within a session update notification.
@@ -164,6 +165,17 @@ type ToolCall struct {
 	Title      string `json:"title"`
 	Kind       string `json:"kind,omitempty"`
 	Status     string `json:"status"`
+}
+
+// AvailableCommand describes a command the agent can execute.
+type AvailableCommand struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// AvailableCommandsUpdate contains the update data for an available_commands_update notification.
+type AvailableCommandsUpdate struct {
+	AvailableCommands []AvailableCommand `json:"availableCommands"`
 }
 
 // Cancel

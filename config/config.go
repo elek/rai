@@ -39,6 +39,7 @@ type Provider struct {
 	Project        string `yaml:"location"`
 	Location       string `yaml:"project"`
 	CredentialFile string `yaml:"credential_file"`
+	Endpoint       string `yaml:"endpoint"`
 }
 
 type Model struct {

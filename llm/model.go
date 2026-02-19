@@ -9,6 +9,7 @@ import (
 	"charm.land/fantasy"
 	"charm.land/fantasy/providers/anthropic"
 	"charm.land/fantasy/providers/google"
+	"charm.land/fantasy/providers/openaicompat"
 	"charm.land/fantasy/providers/openrouter"
 	"github.com/elek/rai/config"
 	"github.com/pkg/errors"
@@ -23,7 +24,7 @@ type WithModel struct {
 	//Model       string  `help:"model to be used" default:""`
 	//MaxToken    int     `help:"maximum number of tokens to be used" default:"1024"`
 	//Temperature float64 `help:"temperature to be used" default:"0.7"`
-	Provider string `help:"force to use the given provider (anthropic, openrouter, openai, google)"`
+	Provider string `help:"force to use the given provider (anthropic, openrouter, openai, openaicompat, google)"`
 	Debug    bool   `help:"enable debug mode"`
 }
 
@@ -40,7 +41,7 @@ func NewLanguageModel(ctx context.Context, cfg config.Config, model config.Model
 		return nil, errors.New("provider couldn't be found: " + model.Provider)
 	}
 
-	switch model.Provider {
+	switch p.Type {
 	case "anthropic":
 		provider, err := anthropic.New(anthropic.WithAPIKey(p.Key))
 		if err != nil {
@@ -87,10 +88,48 @@ func NewLanguageModel(ctx context.Context, cfg config.Config, model config.Model
 			return nil, errors.WithStack(err)
 		}
 		return model, nil
+	case "openai", "openaicompat":
+		ops := []openaicompat.Option{
+			openaicompat.WithAPIKey(p.Key),
+		}
+		if p.Endpoint != "" {
+			ops = append(ops, openaicompat.WithBaseURL(p.Endpoint))
+		}
+		provider, err := openaicompat.New(ops...)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		lm, err := provider.LanguageModel(ctx, model.Model)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		return lm, nil
 	default:
 		fmt.Println(p)
 		return nil, errors.New("unknown provider: " + model.Provider)
 	}
+}
+
+// ResolveModel resolves the --model flag to a config.Model.
+// If no model is specified, it returns an empty config.Model (caller should fall back to default).
+func (w WithModel) ResolveModel(cfg config.Config) (config.Model, error) {
+	if w.Model == "" {
+		return config.Model{}, nil
+	}
+	mod, found := cfg.FindModel(w.Model)
+	if found {
+		return mod, nil
+	}
+	prov, modName, ok := strings.Cut(w.Model, "/")
+	if !ok {
+		return config.Model{}, errors.Errorf("model %q not found in config and not in provider/model format", w.Model)
+	}
+	return config.Model{
+		Name:     w.Model,
+		Provider: prov,
+		Model:    modName,
+	}, nil
 }
 
 func (w WithModel) CreateModel(ctx context.Context) (fantasy.LanguageModel, error) {
@@ -99,21 +138,16 @@ func (w WithModel) CreateModel(ctx context.Context) (fantasy.LanguageModel, erro
 		return nil, errors.New("config couldn't be read")
 	}
 
-	if w.Model == "" {
+	mdl, err := w.ResolveModel(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if mdl == (config.Model{}) {
 		mod, found := cfg.FindDefaultModel()
 		if !found {
 			return nil, errors.New("model is not defined, and no default model found")
 		}
 		return NewLanguageModel(ctx, cfg, mod)
 	}
-	mod, found := cfg.FindModel(w.Model)
-	if !found {
-		prov, mod, _ := strings.Cut(w.Model, "/")
-		return NewLanguageModel(ctx, cfg, config.Model{
-			Name:     w.Model,
-			Provider: prov,
-			Model:    mod,
-		})
-	}
-	return NewLanguageModel(ctx, cfg, mod)
+	return NewLanguageModel(ctx, cfg, mdl)
 }

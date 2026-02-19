@@ -175,6 +175,28 @@ func (s *Server) handleNewSession(req Request) (any, *RPCError) {
 	s.sessions[id] = sess
 	s.mu.Unlock()
 
+	if len(sess.Tools) > 0 {
+		var cmds []AvailableCommand
+		for _, t := range sess.Tools {
+			info := t.Info()
+			cmds = append(cmds, AvailableCommand{
+				Name:        info.Name,
+				Description: info.Description,
+			})
+		}
+		s.sendNotification(Notification{
+			JSONRPC: "2.0",
+			Method:  "session/update",
+			Params: SessionUpdateNotification{
+				SessionID: id,
+				Update: SessionUpdateParams{
+					SessionUpdate:     "available_commands_update",
+					AvailableCommands: cmds,
+				},
+			},
+		})
+	}
+
 	return NewSessionResult{SessionID: id}, nil
 }
 

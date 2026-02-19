@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 
-	"github.com/elek/rai/config"
 	"github.com/elek/rai/llm"
 	"github.com/pkg/errors"
 )
@@ -24,7 +23,12 @@ func (a Ask) Run() error {
 
 	e := llm.NewExecutor(cfg)
 
-	_, err = e.ExecPrompt(ctx, config.Model{}, "", a.Message, nil)
+	mdl, err := a.ResolveModel(cfg)
+	if err != nil {
+		return err
+	}
+
+	_, err = e.ExecPrompt(ctx, mdl, "", a.Message, nil)
 	if err != nil {
 		return errors.WithStack(err)
 	}
