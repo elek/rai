@@ -58,6 +58,15 @@ func AllTools() (res []fantasy.AgentTool) {
 	})
 	res = append(res, insert)
 
+	bash := fantasy.NewAgentTool[BashInput]("bash", "Execute any bash command", func(ctx context.Context, input BashInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+		res := Bash(input)
+		return fantasy.ToolResponse{
+			Content: res,
+			Type:    "text",
+		}, nil
+	})
+	res = append(res, bash)
+
 	skill := fantasy.NewAgentTool[SkillInput]("skill", "List available skills or read a skill template by name", func(ctx context.Context, input SkillInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
 		res := Skill(input)
 		return fantasy.ToolResponse{

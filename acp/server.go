@@ -388,6 +388,8 @@ func toolKind(name string) string {
 		return "edit"
 	case "git":
 		return "execute"
+	case "bash":
+		return "execute"
 	default:
 		return "other"
 	}
