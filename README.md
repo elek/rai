@@ -2,6 +2,13 @@
 
 A command-line tool for interacting with multiple LLM providers. Supports Anthropic, Google (Gemini/Vertex AI), and OpenRouter with agent tools, template-based prompts, LSP, and MCP integrations.
 
+## Status
+
+** IMPORTANT **
+
+ 1. Code is published in __snapshot source-available__ mode, the Git history is not shared. Iternal Git history represents the snapshots of agentic development and not shared.
+ 2. This code is not indented to be a production-ready code. If you (or your assistant) can read code: you are welcome. If not, this is probably not for you. 
+
 ## Features
 
 - **Multi-provider support** - Anthropic (Claude), Google (Gemini API & Vertex AI), OpenRouter
