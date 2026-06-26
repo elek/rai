@@ -42,6 +42,8 @@ func NewLanguageModel(ctx context.Context, cfg config.Config, model config.Model
 	}
 
 	switch p.Type {
+	case "fake":
+		return newFakeModel(model.Provider, model.Model), nil
 	case "anthropic":
 		provider, err := anthropic.New(anthropic.WithAPIKey(p.Key))
 		if err != nil {
