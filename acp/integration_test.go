@@ -2,8 +2,12 @@ package acp
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -27,13 +31,22 @@ func fakeConfig() config.Config {
 	}
 }
 
-// acpClient is a minimal ACP client that drives a Server over an io.Pipe,
-// mirroring what `acpp cat "rai acp"` does: it speaks newline-delimited
-// JSON-RPC 2.0 over stdio.
+// acpClient is a minimal ACP client that speaks newline-delimited JSON-RPC 2.0
+// over stdio, mirroring what `acpp cat "rai acp"` does. It can drive either an
+// in-process Server or a real `rai acp` subprocess.
 type acpClient struct {
 	t       *testing.T
-	in      *io.PipeWriter
+	in      io.WriteCloser
 	scanner *bufio.Scanner
+}
+
+// newACPClientIO builds a client over an arbitrary writer/reader pair, e.g. a
+// subprocess's stdin and stdout.
+func newACPClientIO(t *testing.T, in io.WriteCloser, out io.Reader) *acpClient {
+	t.Helper()
+	scanner := bufio.NewScanner(out)
+	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
+	return &acpClient{t: t, in: in, scanner: scanner}
 }
 
 func newACPClient(t *testing.T, srv *Server) *acpClient {
@@ -46,9 +59,7 @@ func newACPClient(t *testing.T, srv *Server) *acpClient {
 		_ = outW.Close()
 	}()
 
-	scanner := bufio.NewScanner(outR)
-	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
-	return &acpClient{t: t, in: inW, scanner: scanner}
+	return newACPClientIO(t, inW, outR)
 }
 
 func (c *acpClient) send(msg string) {
@@ -108,15 +119,11 @@ func (c *acpClient) readUntilResponse(id int) (Response, []Notification) {
 	return resp, notifs
 }
 
-// TestACPFullPromptFlow exercises the same path as `acpp cat "rai acp"`:
-// initialize -> session/new -> session/prompt, and verifies that the agent
+// drivePromptFlow runs the full ACP conversation against the given client:
+// initialize -> session/new -> session/prompt, and asserts that the agent
 // streams text back and reports a normal end of turn.
-func TestACPFullPromptFlow(t *testing.T) {
-	srv := NewServer(nil)
-	srv.SetConfig(fakeConfig())
-
-	client := newACPClient(t, srv)
-	defer client.close()
+func drivePromptFlow(t *testing.T, client *acpClient) {
+	t.Helper()
 
 	// 1. initialize
 	client.send(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"acpp-test"}}}`)
@@ -168,4 +175,89 @@ func TestACPFullPromptFlow(t *testing.T) {
 	assert.Equal(t, "end_turn", promptResult.StopReason)
 	require.NotNil(t, promptResult.Usage)
 	assert.Positive(t, promptResult.Usage.OutputTokens)
+}
+
+// TestACPFullPromptFlow exercises the same path as `acpp cat "rai acp"`,
+// driving the ACP server in-process.
+func TestACPFullPromptFlow(t *testing.T) {
+	srv := NewServer(nil)
+	srv.SetConfig(fakeConfig())
+
+	client := newACPClient(t, srv)
+	defer client.close()
+
+	drivePromptFlow(t, client)
+}
+
+// TestACPSubprocessPromptFlow is the real end-to-end test: it compiles the rai
+// binary, launches `rai acp` as a subprocess, and drives the ACP protocol over
+// the process's actual stdin/stdout - exactly what an ACP client like `acpp`
+// does. It uses a temporary HOME with a config pointing at the fake provider so
+// no API keys are required.
+func TestACPSubprocessPromptFlow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping subprocess build/run in -short mode")
+	}
+
+	bin := buildRaiBinary(t)
+	home := writeFakeHome(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, bin, "acp")
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	cmd.Stderr = os.Stderr // surface agent logs on failure
+
+	stdin, err := cmd.StdinPipe()
+	require.NoError(t, err)
+	stdout, err := cmd.StdoutPipe()
+	require.NoError(t, err)
+
+	require.NoError(t, cmd.Start(), "failed to start rai acp")
+	t.Cleanup(func() {
+		_ = stdin.Close()
+		_ = cmd.Wait()
+	})
+
+	client := newACPClientIO(t, stdin, stdout)
+	drivePromptFlow(t, client)
+}
+
+// buildRaiBinary compiles the rai binary from the repository root and returns
+// its path.
+func buildRaiBinary(t *testing.T) string {
+	t.Helper()
+	bin := filepath.Join(t.TempDir(), "rai-acptest")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	// The acp package lives one directory below the module root.
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", bin, ".")
+	cmd.Dir = ".."
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "go build failed: %s", out)
+	return bin
+}
+
+// writeFakeHome creates a temporary HOME directory containing a rai config that
+// uses the fake provider as the default model.
+func writeFakeHome(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	cfgDir := filepath.Join(home, ".config", "rai")
+	require.NoError(t, os.MkdirAll(cfgDir, 0o755))
+
+	const cfg = `providers:
+  - name: fake
+    type: fake
+models:
+  - name: fake
+    provider: fake
+    model: fake-model
+    default: true
+`
+	require.NoError(t, os.WriteFile(filepath.Join(cfgDir, "config.yaml"), []byte(cfg), 0o644))
+	return home
 }
