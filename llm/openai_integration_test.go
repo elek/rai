@@ -23,7 +23,7 @@ func TestOpenAIIntegration(t *testing.T) {
 		model = "gpt-4o-mini"
 	}
 
-	m := NewOpenAIModel(key, os.Getenv("OPENAI_BASE_URL"), model, 1024)
+	m := NewOpenAIModel(key, os.Getenv("OPENAI_BASE_URL"), model, 1024, false)
 	agent := NewAgent(m, "", nil)
 	res, err := agent.Run(context.Background(), "What is the capital of Spain? Answer in one word.", RunOptions{})
 	require.NoError(t, err)

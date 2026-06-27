@@ -17,10 +17,12 @@ type anthropicModel struct {
 	client    anthropic.Client
 	model     string
 	maxTokens int64
+	debug     bool
 }
 
-// NewAnthropicModel creates a Model backed by the Anthropic Messages API.
-func NewAnthropicModel(apiKey, baseURL, model string, maxTokens int64) Model {
+// NewAnthropicModel creates a Model backed by the Anthropic Messages API. When
+// debug is true, every request and response is traced to stderr.
+func NewAnthropicModel(apiKey, baseURL, model string, maxTokens int64, debug bool) Model {
 	opts := []option.RequestOption{option.WithAPIKey(apiKey)}
 	if baseURL != "" {
 		opts = append(opts, option.WithBaseURL(baseURL))
@@ -32,6 +34,7 @@ func NewAnthropicModel(apiKey, baseURL, model string, maxTokens int64) Model {
 		client:    anthropic.NewClient(opts...),
 		model:     model,
 		maxTokens: maxTokens,
+		debug:     debug,
 	}
 }
 
@@ -56,6 +59,10 @@ func (m *anthropicModel) Stream(ctx context.Context, req Request, onText func(de
 		params.Temperature = anthropic.Float(req.Temperature)
 	}
 
+	if m.debug {
+		debugRequest(m.Provider(), m.model, req)
+	}
+
 	stream := m.client.Messages.NewStreaming(ctx, params)
 	message := anthropic.Message{}
 	for stream.Next() {
@@ -75,7 +82,11 @@ func (m *anthropicModel) Stream(ctx context.Context, req Request, onText func(de
 		return nil, errors.WithStack(err)
 	}
 
-	return turnFromAnthropic(&message), nil
+	turn := turnFromAnthropic(&message)
+	if m.debug {
+		debugTurn(m.Provider(), m.model, turn)
+	}
+	return turn, nil
 }
 
 // toAnthropicMessages converts neutral messages into Anthropic message params.

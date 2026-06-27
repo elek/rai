@@ -30,9 +30,9 @@ func NewModel(ctx context.Context, cfg config.Config, model config.Model) (Model
 	case "fake":
 		return NewFakeModel(model.Provider, model.Model), nil
 	case "anthropic":
-		return NewAnthropicModel(p.Key, p.Endpoint, model.Model, maxTokens), nil
+		return NewAnthropicModel(p.Key, p.Endpoint, model.Model, maxTokens, model.Debug), nil
 	case "openai", "openaicompat":
-		return NewOpenAIModel(p.Key, p.Endpoint, model.Model, maxTokens), nil
+		return NewOpenAIModel(p.Key, p.Endpoint, model.Model, maxTokens, model.Debug), nil
 	case "google", "openrouter":
 		return nil, errors.New("provider type not supported in this phase: " + p.Type)
 	default:
@@ -74,6 +74,10 @@ func (w WithModel) CreateModel(ctx context.Context) (Model, error) {
 			return nil, errors.New("model is not defined, and no default model found")
 		}
 		mdl = mod
+	}
+	// The --debug flag forces tracing on regardless of the model config.
+	if w.Debug {
+		mdl.Debug = true
 	}
 	return NewModel(ctx, cfg, mdl)
 }

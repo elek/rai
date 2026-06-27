@@ -44,7 +44,7 @@ func (a Do) Run() error {
 		cb = llm.DryRun
 	} else {
 
-		e := llm.NewExecutor(cfg)
+		e := llm.NewExecutor(cfg, a.Debug)
 		cb = e.ExecPrompt
 	}
 

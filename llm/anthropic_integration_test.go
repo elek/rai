@@ -23,7 +23,7 @@ func TestAnthropicIntegration(t *testing.T) {
 		model = "claude-haiku-4-5"
 	}
 
-	m := NewAnthropicModel(key, "", model, 1024)
+	m := NewAnthropicModel(key, "", model, 1024, false)
 	agent := NewAgent(m, "", nil)
 	res, err := agent.Run(context.Background(), "What is the capital of Spain? Answer in one word.", RunOptions{})
 	require.NoError(t, err)

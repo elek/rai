@@ -14,11 +14,13 @@ type openaiModel struct {
 	client    openai.Client
 	model     string
 	maxTokens int64
+	debug     bool
 }
 
 // NewOpenAIModel creates a Model backed by the OpenAI chat completions API. A
-// non-empty baseURL targets an OpenAI-compatible endpoint.
-func NewOpenAIModel(apiKey, baseURL, model string, maxTokens int64) Model {
+// non-empty baseURL targets an OpenAI-compatible endpoint. When debug is true,
+// every request and response is traced to stderr.
+func NewOpenAIModel(apiKey, baseURL, model string, maxTokens int64, debug bool) Model {
 	opts := []option.RequestOption{option.WithAPIKey(apiKey)}
 	if baseURL != "" {
 		opts = append(opts, option.WithBaseURL(baseURL))
@@ -27,6 +29,7 @@ func NewOpenAIModel(apiKey, baseURL, model string, maxTokens int64) Model {
 		client:    openai.NewClient(opts...),
 		model:     model,
 		maxTokens: maxTokens,
+		debug:     debug,
 	}
 }
 
@@ -50,6 +53,10 @@ func (m *openaiModel) Stream(ctx context.Context, req Request, onText func(delta
 		params.Tools = toOpenAITools(req.Tools)
 	}
 
+	if m.debug {
+		debugRequest(m.Provider(), m.model, req)
+	}
+
 	stream := m.client.Chat.Completions.NewStreaming(ctx, params)
 	acc := openai.ChatCompletionAccumulator{}
 	for stream.Next() {
@@ -65,7 +72,11 @@ func (m *openaiModel) Stream(ctx context.Context, req Request, onText func(delta
 		return nil, errors.WithStack(err)
 	}
 
-	return turnFromOpenAI(&acc), nil
+	turn := turnFromOpenAI(&acc)
+	if m.debug {
+		debugTurn(m.Provider(), m.model, turn)
+	}
+	return turn, nil
 }
 
 // toOpenAIMessages converts neutral messages into OpenAI chat message params,

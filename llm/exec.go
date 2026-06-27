@@ -15,12 +15,14 @@ type AgentCallback func(ctx context.Context, model config.Model, system string, 
 
 // Executor runs prompts against models created from a configuration.
 type Executor struct {
-	cfg config.Config
+	cfg   config.Config
+	debug bool
 }
 
-// NewExecutor creates an Executor bound to a configuration.
-func NewExecutor(cfg config.Config) *Executor {
-	return &Executor{cfg: cfg}
+// NewExecutor creates an Executor bound to a configuration. When debug is true,
+// every request and response is traced to stderr regardless of per-model config.
+func NewExecutor(cfg config.Config, debug bool) *Executor {
+	return &Executor{cfg: cfg, debug: debug}
 }
 
 // ExecPrompt runs prompt through an agent loop, streaming the model's text to
@@ -33,6 +35,10 @@ func (e *Executor) ExecPrompt(ctx context.Context, mdl config.Model, system stri
 			return "", errors.New("no default model configured")
 		}
 		mdl = def
+	}
+	// The --debug flag forces tracing on regardless of the model config.
+	if e.debug {
+		mdl.Debug = true
 	}
 
 	model, err := NewModel(ctx, e.cfg, mdl)

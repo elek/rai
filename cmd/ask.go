@@ -21,7 +21,7 @@ func (a Ask) Run() error {
 		return errors.WithStack(err)
 	}
 
-	e := llm.NewExecutor(cfg)
+	e := llm.NewExecutor(cfg, a.Debug)
 
 	mdl, err := a.ResolveModel(cfg)
 	if err != nil {
