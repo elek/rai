@@ -66,8 +66,3 @@ func execFunc(cmd string) (string, error) {
 	out, err := exec.Command(parts[0], parts[1:]...).CombinedOutput()
 	return string(out), err
 }
-
-func bashFunc(cmd string) (string, error) {
-	out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
-	return string(out), err
-}

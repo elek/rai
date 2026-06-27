@@ -119,18 +119,18 @@ func (s *Server) handleRequest(req Request) (any, *RPCError) {
 }
 
 func (s *Server) handleNotification(req Request) {
-	switch req.Method {
-	case "session/cancel":
-		var params CancelParams
-		if err := json.Unmarshal(req.Params, &params); err != nil {
-			return
-		}
-		s.mu.Lock()
-		sess, ok := s.sessions[params.SessionID]
-		s.mu.Unlock()
-		if ok && sess.Cancel != nil {
-			sess.Cancel()
-		}
+	if req.Method != "session/cancel" {
+		return
+	}
+	var params CancelParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return
+	}
+	s.mu.Lock()
+	sess, ok := s.sessions[params.SessionID]
+	s.mu.Unlock()
+	if ok && sess.Cancel != nil {
+		sess.Cancel()
 	}
 }
 
@@ -341,14 +341,14 @@ func (s *Server) sendResponse(resp Response) {
 	s.outMu.Lock()
 	defer s.outMu.Unlock()
 	data, _ := json.Marshal(resp)
-	fmt.Fprintf(s.out, "%s\n", data)
+	_, _ = fmt.Fprintf(s.out, "%s\n", data)
 }
 
 func (s *Server) sendNotification(notif Notification) {
 	s.outMu.Lock()
 	defer s.outMu.Unlock()
 	data, _ := json.Marshal(notif)
-	fmt.Fprintf(s.out, "%s\n", data)
+	_, _ = fmt.Fprintf(s.out, "%s\n", data)
 }
 
 func (s *Server) sendError(id json.RawMessage, code int, message string, err error) {

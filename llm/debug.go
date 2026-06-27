@@ -14,12 +14,12 @@ var debugOut io.Writer = os.Stderr
 
 // debugRequest writes a human-readable trace of an outgoing request to the LLM.
 func debugRequest(provider, model string, req Request) {
-	fmt.Fprint(debugOut, formatRequest(provider, model, req))
+	_, _ = io.WriteString(debugOut, formatRequest(provider, model, req))
 }
 
 // debugTurn writes a human-readable trace of a turn received from the LLM.
 func debugTurn(provider, model string, turn *Turn) {
-	fmt.Fprint(debugOut, formatTurn(provider, model, turn))
+	_, _ = io.WriteString(debugOut, formatTurn(provider, model, turn))
 }
 
 // formatRequest renders a Request as a human-readable, multi-line trace.

@@ -29,9 +29,8 @@ func NewMcpAgentTool(ctx context.Context, command string, args []string) ([]llm.
 		agentTools = append(agentTools, NewMcpAgentToolMethod(session, tool))
 	}
 	return agentTools, func() {
-		session.Close()
+		_ = session.Close()
 	}, nil
-
 }
 
 type McpAgentTool struct {

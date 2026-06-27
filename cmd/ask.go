@@ -16,7 +16,7 @@ type Ask struct {
 func (a Ask) Run() error {
 	ctx := context.Background()
 
-	cfg, err := a.WithConfig.GetConfig()
+	cfg, err := a.GetConfig()
 	if err != nil {
 		return errors.WithStack(err)
 	}

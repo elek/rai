@@ -49,7 +49,7 @@ func ParseTemplate(ctx context.Context, cfg config.Config, tmplStr string, data 
 	for {
 		token, err := decoder.Token()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, errors.WithStack(err)
@@ -93,9 +93,7 @@ func ParseTemplate(ctx context.Context, cfg config.Config, tmplStr string, data 
 					return nil, errors.WithStack(err)
 				}
 				result.Closers = append(result.Closers, closer)
-				for _, t := range agentTools {
-					result.Tools = append(result.Tools, t)
-				}
+				result.Tools = append(result.Tools, agentTools...)
 			case "lsp":
 				cmd := getAttr(scope.Attr, "command")
 				agentTools, closer, err := tool.NewLSPAgentTool(ctx, cmd, ".")
@@ -103,9 +101,7 @@ func ParseTemplate(ctx context.Context, cfg config.Config, tmplStr string, data 
 					return nil, errors.WithStack(err)
 				}
 				result.Closers = append(result.Closers, closer)
-				for _, t := range agentTools {
-					result.Tools = append(result.Tools, t)
-				}
+				result.Tools = append(result.Tools, agentTools...)
 			case "exec":
 				cmd := getAttr(scope.Attr, "command")
 				s, err := execFunc(cmd)

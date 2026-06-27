@@ -25,7 +25,7 @@ type Acp struct {
 func (a Acp) Run() error {
 	ctx := context.Background()
 
-	cfg, err := a.WithConfig.GetConfig()
+	cfg, err := a.GetConfig()
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -53,12 +53,12 @@ func (a Acp) Run() error {
 	srv := acp.NewServer(parsed)
 	srv.SetConfig(cfg)
 
-	if a.WithModel.Model != "" {
-		mod, found := cfg.FindModel(a.WithModel.Model)
+	if a.Model != "" {
+		mod, found := cfg.FindModel(a.Model)
 		if !found {
-			prov, modName, _ := strings.Cut(a.WithModel.Model, "/")
+			prov, modName, _ := strings.Cut(a.Model, "/")
 			mod = config.Model{
-				Name:     a.WithModel.Model,
+				Name:     a.Model,
 				Provider: prov,
 				Model:    modName,
 			}

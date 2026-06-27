@@ -11,8 +11,14 @@ import (
 )
 
 func init() {
-	pongo2.RegisterTag("shell", shellFilter)
-	pongo2.RegisterTag("include", includeTag)
+	if err := pongo2.RegisterTag("shell", shellFilter); err != nil {
+		panic(err)
+	}
+	// pongo2 ships a built-in "include" tag; ReplaceTag overrides it with our
+	// version, which reads an arbitrary file by (absolute) path.
+	if err := pongo2.ReplaceTag("include", includeTag); err != nil {
+		panic(err)
+	}
 }
 
 func shellFilter(doc *pongo2.Parser, start *pongo2.Token, arguments *pongo2.Parser) (pongo2.INodeTag, *pongo2.Error) {
@@ -25,10 +31,8 @@ func shellFilter(doc *pongo2.Parser, start *pongo2.Token, arguments *pongo2.Pars
 	}
 	shellNode.wrapper = wrapper
 
-	// Check for any arguments after endshell (currently ignored)
-	if tagArgs.Count() > 0 {
-		// Arguments after endshell are ignored for now
-	}
+	// Arguments after endshell are currently ignored.
+	_ = tagArgs
 
 	return shellNode, nil
 }
@@ -54,8 +58,8 @@ func (node *tagShellNode) Execute(ctx *pongo2.ExecutionContext, writer pongo2.Te
 	if osErr != nil {
 		return ctx.Error(osErr.Error(), nil)
 	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	defer func() { _ = tmpFile.Close() }()
 
 	// Write the script content to the file
 	if _, osErr := tmpFile.WriteString(scriptContent); osErr != nil {
@@ -68,21 +72,26 @@ func (node *tagShellNode) Execute(ctx *pongo2.ExecutionContext, writer pongo2.Te
 	}
 
 	// Close the file before executing
-	tmpFile.Close()
+	if osErr := tmpFile.Close(); osErr != nil {
+		return ctx.Error(osErr.Error(), nil)
+	}
 
 	// Execute the script using bash
 	cmd := exec.Command("bash", tmpFile.Name())
 	output, osErr := cmd.Output()
 	if osErr != nil {
 		// Include stderr if available
-		if exitErr, ok := osErr.(*exec.ExitError); ok {
+		exitErr := &exec.ExitError{}
+		if errors.As(osErr, &exitErr) {
 			return ctx.Error(string(exitErr.Stderr), nil)
 		}
 		return ctx.Error(osErr.Error(), nil)
 	}
 
 	// Write the output to the template
-	writer.WriteString(string(output))
+	if _, osErr := writer.WriteString(string(output)); osErr != nil {
+		return ctx.Error(osErr.Error(), nil)
+	}
 
 	return nil
 }
@@ -139,7 +148,9 @@ func (node *tagIncludeNode) Execute(ctx *pongo2.ExecutionContext, writer pongo2.
 	}
 
 	// Write the content to the template
-	writer.WriteString(string(content))
+	if _, osErr := writer.WriteString(string(content)); osErr != nil {
+		return ctx.Error(osErr.Error(), nil)
+	}
 
 	return nil
 }

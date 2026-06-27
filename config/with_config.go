@@ -1,10 +1,11 @@
 package config
 
 import (
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
+
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 )
 
 type WithConfig struct {

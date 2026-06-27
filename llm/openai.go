@@ -38,7 +38,7 @@ func (m *openaiModel) Name() string     { return m.model }
 
 func (m *openaiModel) Stream(ctx context.Context, req Request, onText func(delta string)) (*Turn, error) {
 	params := openai.ChatCompletionNewParams{
-		Model:    openai.ChatModel(m.model),
+		Model:    m.model,
 		Messages: toOpenAIMessages(req.System, req.Messages),
 		// Ask for usage to be reported on the final streamed chunk.
 		StreamOptions: openai.ChatCompletionStreamOptionsParam{IncludeUsage: openai.Bool(true)},

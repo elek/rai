@@ -60,7 +60,7 @@ func (w WithModel) ResolveModel(cfg config.Config) (config.Model, error) {
 
 // CreateModel resolves the configured model and instantiates it.
 func (w WithModel) CreateModel(ctx context.Context) (Model, error) {
-	cfg, err := w.WithConfig.GetConfig()
+	cfg, err := w.GetConfig()
 	if err != nil {
 		return nil, errors.New("config couldn't be read")
 	}

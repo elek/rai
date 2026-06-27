@@ -43,7 +43,7 @@ func (m *anthropicModel) Name() string     { return m.model }
 
 func (m *anthropicModel) Stream(ctx context.Context, req Request, onText func(delta string)) (*Turn, error) {
 	params := anthropic.MessageNewParams{
-		Model:     anthropic.Model(m.model),
+		Model:     m.model,
 		MaxTokens: m.maxTokens,
 		Messages:  toAnthropicMessages(req.Messages),
 	}

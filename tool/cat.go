@@ -34,7 +34,7 @@ func Cat(input CatInput) string {
 	if err != nil {
 		return fmt.Sprintf("Error opening file: %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Use default values if not provided
 	offset := input.Offset

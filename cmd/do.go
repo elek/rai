@@ -34,7 +34,7 @@ func (a Do) Run() error {
 
 	promptContent := string(rawPrompt)
 
-	cfg, err := a.WithConfig.GetConfig()
+	cfg, err := a.GetConfig()
 	if err != nil {
 		return errors.WithStack(err)
 	}

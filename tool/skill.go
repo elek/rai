@@ -113,7 +113,7 @@ func skillCatalog(baseDir string) string {
 	}
 	b.WriteString("Available skills:\n")
 	for _, s := range skills {
-		b.WriteString(fmt.Sprintf("- %s: %s\n", s.Name, s.Description))
+		fmt.Fprintf(&b, "- %s: %s\n", s.Name, s.Description)
 	}
 	return b.String()
 }
