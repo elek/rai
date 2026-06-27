@@ -3,78 +3,37 @@ package tool
 import (
 	"context"
 
-	"charm.land/fantasy"
+	"github.com/elek/rai/llm"
 )
 
-type ToolDef struct {
-	Name        string
-	Description string
-	Callback    any
-}
+func AllTools() (res []llm.Tool) {
+	res = append(res, llm.NewTool[GitInput]("git", "Execute any git command in the local repository", func(ctx context.Context, input GitInput) (string, error) {
+		return Git(input), nil
+	}))
 
-func AllTools() (res []fantasy.AgentTool) {
-	git := fantasy.NewAgentTool[GitInput]("git", "Execute any git command in the local repository", func(ctx context.Context, input GitInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-		res := Git(input)
-		return fantasy.ToolResponse{
-			Content: res,
-			Type:    "text",
-		}, nil
-	})
-	res = append(res, git)
+	res = append(res, llm.NewTool[CatInput]("cat", "Read file content with optional offset and line limits", func(ctx context.Context, input CatInput) (string, error) {
+		return Cat(input), nil
+	}))
 
-	cat := fantasy.NewAgentTool[CatInput]("cat", "Read file content with optional offset and line limits", func(ctx context.Context, input CatInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-		res := Cat(input)
-		return fantasy.ToolResponse{
-			Content: res,
-			Type:    "text",
-		}, nil
-	})
-	res = append(res, cat)
+	res = append(res, llm.NewTool[FileListInput]("files", "List files in a directory, with options for recursive listing and pattern matching", func(ctx context.Context, input FileListInput) (string, error) {
+		return ListFiles(input), nil
+	}))
 
-	files := fantasy.NewAgentTool[FileListInput]("files", "List files in a directory, with options for recursive listing and pattern matching", func(ctx context.Context, input FileListInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-		res := ListFiles(input)
-		return fantasy.ToolResponse{
-			Content: res,
-			Type:    "text",
-		}, nil
-	})
-	res = append(res, files)
+	res = append(res, llm.NewTool[CreateInput]("create", "Create a file with the specified content and path ", func(ctx context.Context, input CreateInput) (string, error) {
+		return Create(input)
+	}))
 
-	create := fantasy.NewAgentTool[CreateInput]("create", "Create a file with the specified content and path ", func(ctx context.Context, input CreateInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-		res, err := Create(input)
-		return fantasy.ToolResponse{
-			Content: res,
-			Type:    "text",
-		}, err
-	})
-	res = append(res, create)
+	res = append(res, llm.NewTool[InsertInput]("insert", "Insert additional content to a file from a specific line", func(ctx context.Context, input InsertInput) (string, error) {
+		return Insert(input)
+	}))
 
-	insert := fantasy.NewAgentTool[InsertInput]("insert", "Insert additional content to a file from a specific line", func(ctx context.Context, input InsertInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-		res, err := Insert(input)
-		return fantasy.ToolResponse{
-			Content: res,
-			Type:    "text",
-		}, err
-	})
-	res = append(res, insert)
+	res = append(res, llm.NewTool[BashInput]("bash", "Execute any bash command", func(ctx context.Context, input BashInput) (string, error) {
+		return Bash(input), nil
+	}))
 
-	bash := fantasy.NewAgentTool[BashInput]("bash", "Execute any bash command", func(ctx context.Context, input BashInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-		res := Bash(input)
-		return fantasy.ToolResponse{
-			Content: res,
-			Type:    "text",
-		}, nil
-	})
-	res = append(res, bash)
-
-	skill := fantasy.NewAgentTool[SkillInput]("skill", SkillToolDescription(), func(ctx context.Context, input SkillInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-		res := Skill(input)
-		return fantasy.ToolResponse{
-			Content: res,
-			Type:    "text",
-		}, nil
-	})
-	res = append(res, skill)
+	res = append(res, llm.NewTool[SkillInput]("skill", SkillToolDescription(), func(ctx context.Context, input SkillInput) (string, error) {
+		return Skill(input), nil
+	}))
 
 	return res
 }

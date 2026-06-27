@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"charm.land/fantasy"
 	"github.com/elek/rai/config"
+	"github.com/elek/rai/llm"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +20,7 @@ echo "asd"
 </shell>
 `
 	var capturedSystem string
-	callback := func(ctx context.Context, model config.Model, system string, prompt string, tools []fantasy.AgentTool) (string, error) {
+	callback := func(ctx context.Context, model config.Model, system string, prompt string, tools []llm.Tool) (string, error) {
 		capturedSystem = system
 		return "test response", nil
 	}
@@ -98,7 +98,7 @@ just a prompt
 		t.Run(tt.name, func(t *testing.T) {
 			var capturedModel config.Model
 			var capturedSystem, capturedPrompt string
-			callback := func(ctx context.Context, model config.Model, system string, prompt string, tools []fantasy.AgentTool) (string, error) {
+			callback := func(ctx context.Context, model config.Model, system string, prompt string, tools []llm.Tool) (string, error) {
 				capturedModel = model
 				capturedSystem = system
 				capturedPrompt = prompt

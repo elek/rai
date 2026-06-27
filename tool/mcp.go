@@ -6,12 +6,12 @@ import (
 	"os/exec"
 	"strings"
 
-	"charm.land/fantasy"
+	"github.com/elek/rai/llm"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/pkg/errors"
 )
 
-func NewMcpAgentTool(ctx context.Context, command string, args []string) ([]fantasy.AgentTool, func(), error) {
+func NewMcpAgentTool(ctx context.Context, command string, args []string) ([]llm.Tool, func(), error) {
 	client := mcp.NewClient(&mcp.Implementation{Name: "mcp-client", Version: "v1.0.0"}, nil)
 
 	transport := &mcp.CommandTransport{Command: exec.Command(command, args...)}
@@ -20,7 +20,7 @@ func NewMcpAgentTool(ctx context.Context, command string, args []string) ([]fant
 		return nil, func() {}, errors.WithStack(err)
 	}
 
-	var agentTools []fantasy.AgentTool
+	var agentTools []llm.Tool
 	for tool, err := range session.Tools(ctx, &mcp.ListToolsParams{}) {
 		if err != nil {
 			return nil, func() {}, errors.WithStack(err)
@@ -36,7 +36,7 @@ func NewMcpAgentTool(ctx context.Context, command string, args []string) ([]fant
 
 type McpAgentTool struct {
 	session *mcp.ClientSession
-	info    fantasy.ToolInfo
+	info    llm.ToolInfo
 }
 
 func NewMcpAgentToolMethod(session *mcp.ClientSession, tool *mcp.Tool) *McpAgentTool {
@@ -63,7 +63,7 @@ func NewMcpAgentToolMethod(session *mcp.ClientSession, tool *mcp.Tool) *McpAgent
 
 	return &McpAgentTool{
 		session: session,
-		info: fantasy.ToolInfo{
+		info: llm.ToolInfo{
 			Name:        tool.Name,
 			Description: tool.Description,
 			Parameters:  parameters,
@@ -72,16 +72,16 @@ func NewMcpAgentToolMethod(session *mcp.ClientSession, tool *mcp.Tool) *McpAgent
 	}
 }
 
-func (m McpAgentTool) Info() fantasy.ToolInfo {
+func (m McpAgentTool) Info() llm.ToolInfo {
 	return m.info
 }
 
-func (m McpAgentTool) Run(ctx context.Context, params fantasy.ToolCall) (fantasy.ToolResponse, error) {
+func (m McpAgentTool) Run(ctx context.Context, params llm.ToolCall) (llm.ToolResult, error) {
 	// Parse the input JSON string into arguments
 	var arguments map[string]any
 	if params.Input != "" {
 		if err := json.Unmarshal([]byte(params.Input), &arguments); err != nil {
-			return fantasy.NewTextErrorResponse("Failed to parse tool input: " + err.Error()), errors.WithStack(err)
+			return llm.ToolResult{Content: "Failed to parse tool input: " + err.Error(), IsError: true}, nil
 		}
 	}
 
@@ -91,10 +91,10 @@ func (m McpAgentTool) Run(ctx context.Context, params fantasy.ToolCall) (fantasy
 		Arguments: arguments,
 	})
 	if err != nil {
-		return fantasy.NewTextErrorResponse("Failed to call MCP tool: " + err.Error()), errors.WithStack(err)
+		return llm.ToolResult{Content: "Failed to call MCP tool: " + err.Error(), IsError: true}, nil
 	}
 
-	// Convert the MCP result to fantasy.ToolResponse
+	// Convert the MCP result to an llm.ToolResult
 	var contentBuilder strings.Builder
 	for i, content := range result.Content {
 		if i > 0 {
@@ -116,29 +116,20 @@ func (m McpAgentTool) Run(ctx context.Context, params fantasy.ToolCall) (fantasy
 		}
 	}
 
-	response := fantasy.ToolResponse{
-		Type:    "text",
-		Content: contentBuilder.String(),
-		IsError: result.IsError,
-	}
-
-	// Add structured content as metadata if present
+	// Append any structured content so it is not lost.
 	if result.StructuredContent != nil {
-		metadataJSON, err := json.Marshal(result.StructuredContent)
-		if err == nil {
-			response.Metadata = string(metadataJSON)
+		if metadataJSON, err := json.Marshal(result.StructuredContent); err == nil {
+			if contentBuilder.Len() > 0 {
+				contentBuilder.WriteString("\n")
+			}
+			contentBuilder.Write(metadataJSON)
 		}
 	}
 
-	return response, nil
+	return llm.ToolResult{
+		Content: contentBuilder.String(),
+		IsError: result.IsError,
+	}, nil
 }
 
-func (m McpAgentTool) ProviderOptions() fantasy.ProviderOptions {
-	return fantasy.ProviderOptions{}
-}
-
-func (m McpAgentTool) SetProviderOptions(opts fantasy.ProviderOptions) {
-	// noop
-}
-
-var _ fantasy.AgentTool = (*McpAgentTool)(nil)
+var _ llm.Tool = (*McpAgentTool)(nil)

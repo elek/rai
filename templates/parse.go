@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	"charm.land/fantasy"
 	"github.com/elek/rai/config"
+	"github.com/elek/rai/llm"
 	"github.com/elek/rai/tool"
 	"github.com/google/shlex"
 	"github.com/pkg/errors"
@@ -19,7 +19,7 @@ type ParsedTemplate struct {
 	Model   config.Model
 	System  string
 	Prompt  string
-	Tools   []fantasy.AgentTool
+	Tools   []llm.Tool
 	Closers []func()
 }
 

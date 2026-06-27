@@ -15,8 +15,6 @@ import (
 	"github.com/elek/rai/templates"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-
-	"charm.land/fantasy"
 )
 
 // Session holds the state for a single ACP session.
@@ -25,7 +23,7 @@ type Session struct {
 	Cwd            string
 	Model          config.Model
 	System         string
-	Tools          []fantasy.AgentTool
+	Tools          []llm.Tool
 	TemplatePrompt string
 	FirstPrompt    bool
 	Cancel         context.CancelFunc
@@ -246,22 +244,15 @@ func (s *Server) handlePrompt(req Request) (any, *RPCError) {
 		}
 	}
 
-	lm, err := llm.NewLanguageModel(ctx, *s.cfg, model)
+	lm, err := llm.NewModel(ctx, *s.cfg, model)
 	if err != nil {
 		return nil, &RPCError{Code: -32603, Message: "Failed to create model: " + err.Error()}
 	}
 
-	var opts []fantasy.AgentOption
-	opts = append(opts, fantasy.WithTools(sess.Tools...))
-	if sess.System != "" {
-		opts = append(opts, fantasy.WithSystemPrompt(sess.System))
-	}
+	agent := llm.NewAgent(lm, sess.System, sess.Tools)
 
-	agent := fantasy.NewAgent(lm, opts...)
-
-	response, err := agent.Stream(ctx, fantasy.AgentStreamCall{
-		Prompt: promptText,
-		OnTextDelta: func(id string, token string) error {
+	result, err := agent.Run(ctx, promptText, llm.RunOptions{
+		OnTextDelta: func(token string) {
 			s.sendNotification(Notification{
 				JSONRPC: "2.0",
 				Method:  "session/update",
@@ -276,9 +267,8 @@ func (s *Server) handlePrompt(req Request) (any, *RPCError) {
 					},
 				},
 			})
-			return nil
 		},
-		OnToolCall: func(toolCall fantasy.ToolCallContent) error {
+		OnToolCall: func(name, input string) {
 			tcID := uuid.New().String()
 			s.sendNotification(Notification{
 				JSONRPC: "2.0",
@@ -289,14 +279,13 @@ func (s *Server) handlePrompt(req Request) (any, *RPCError) {
 						SessionUpdate: "tool_call",
 						ToolCall: &ToolCall{
 							ToolCallID: tcID,
-							Title:      toolCall.ToolName,
-							Kind:       toolKind(toolCall.ToolName),
+							Title:      name,
+							Kind:       toolKind(name),
 							Status:     "in_progress",
 						},
 					},
 				},
 			})
-			return nil
 		},
 	})
 	if err != nil {
@@ -306,17 +295,15 @@ func (s *Server) handlePrompt(req Request) (any, *RPCError) {
 		return nil, &RPCError{Code: -32603, Message: "Agent error: " + err.Error()}
 	}
 
-	usage := response.TotalUsage
+	usage := result.Usage
 
-	modelID := lm.Model()
+	modelID := lm.Name()
 	meta := &RaiMeta{
 		Model: modelID,
 		ModelUsage: map[string]*ModelUsageInfo{
 			modelID: {
-				InputTokens:              usage.InputTokens,
-				OutputTokens:             usage.OutputTokens,
-				CacheCreationInputTokens: usage.CacheCreationTokens,
-				CacheReadInputTokens:     usage.CacheReadTokens,
+				InputTokens:  usage.InputTokens,
+				OutputTokens: usage.OutputTokens,
 			},
 		},
 	}
@@ -331,9 +318,7 @@ func (s *Server) handlePrompt(req Request) (any, *RPCError) {
 				mu.ContextWindow = m.ContextWindow
 				mu.MaxOutputTokens = m.DefaultMaxTokens
 				mu.CostUSD = m.CostPer1MIn*float64(usage.InputTokens)/1_000_000 +
-					m.CostPer1MOut*float64(usage.OutputTokens)/1_000_000 +
-					m.CostPer1MInCached*float64(usage.CacheReadTokens)/1_000_000 +
-					m.CostPer1MIn*float64(usage.CacheCreationTokens)/1_000_000
+					m.CostPer1MOut*float64(usage.OutputTokens)/1_000_000
 				meta.TotalCostUSD = mu.CostUSD
 				break
 			}
@@ -344,11 +329,9 @@ func (s *Server) handlePrompt(req Request) (any, *RPCError) {
 	return PromptResult{
 		StopReason: "end_turn",
 		Usage: &UsageInfo{
-			InputTokens:         usage.InputTokens,
-			OutputTokens:        usage.OutputTokens,
-			TotalTokens:         usage.TotalTokens,
-			CacheCreationTokens: usage.CacheCreationTokens,
-			CacheReadTokens:     usage.CacheReadTokens,
+			InputTokens:  usage.InputTokens,
+			OutputTokens: usage.OutputTokens,
+			TotalTokens:  usage.TotalTokens,
 		},
 		Meta: meta,
 	}, nil

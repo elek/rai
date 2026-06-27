@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"charm.land/fantasy"
+	"github.com/elek/rai/llm"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +25,7 @@ func TestMcp(t *testing.T) {
 	encoded, err := json.Marshal(params)
 	require.NoError(t, err)
 
-	run, err := tool[0].Run(t.Context(), fantasy.ToolCall{
+	run, err := tool[0].Run(t.Context(), llm.ToolCall{
 		ID:    "1",
 		Name:  "youtube-text-transcription",
 		Input: string(encoded),

@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"charm.land/fantasy"
 	"github.com/elek/lspc/powernap/pkg/config"
 	"github.com/elek/lspc/powernap/pkg/lsp"
 	"github.com/elek/lspc/powernap/pkg/lsp/protocol"
 	"github.com/elek/lspc/powernap/pkg/registry"
+	"github.com/elek/rai/llm"
 	"github.com/pkg/errors"
 )
 
@@ -19,13 +19,13 @@ type SymbolInput struct {
 	Paths []string `json:"path" description:"Relative path of the source files from the actual current directory, to list all including symbols."`
 }
 
-func NewLSPAgentTool(ctx context.Context, command string, root string) ([]fantasy.AgentTool, func(), error) {
+func NewLSPAgentTool(ctx context.Context, command string, root string) ([]llm.Tool, func(), error) {
 	server, err := NewLSPServer(ctx, command, root)
 	if err != nil {
 		return nil, func() {}, err
 	}
 
-	var res []fantasy.AgentTool
+	var res []llm.Tool
 
 	res = append(res, ToAgentTool[SymbolInput]("list-symbols", "List all available symbol names from a source code file (structs, functions, methods...) ", server.Symbols))
 
@@ -110,12 +110,8 @@ func NewLSPServer(ctx context.Context, command string, root string) (*LSPServer,
 	}, nil
 }
 
-func ToAgentTool[I any](name string, desc string, f func(I) (string, error)) fantasy.AgentTool {
-	return fantasy.NewAgentTool[I](name, desc, func(ctx context.Context, input I, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-		res, err := f(input)
-		return fantasy.ToolResponse{
-			Content: res,
-			Type:    "text",
-		}, err
+func ToAgentTool[I any](name string, desc string, f func(I) (string, error)) llm.Tool {
+	return llm.NewTool[I](name, desc, func(ctx context.Context, input I) (string, error) {
+		return f(input)
 	})
 }

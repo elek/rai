@@ -28,13 +28,14 @@ go vet ./...            # Run Go's built-in linter
 - `main.go` - Entry point, Kong CLI setup with 4 subcommands (ask, do, run, models)
 - `cmd/` - CLI command implementations (ask, do, models, usage reporting)
 - `config/` - YAML config loading from `~/.config/rai/config.yaml`, model/provider definitions
-- `llm/` - LLM model creation (Anthropic, Google, OpenRouter) and prompt execution with streaming
+- `llm/` - Own provider-neutral LLM interface (`Model`, `Tool`, `Agent` loop) with implementations for Anthropic, OpenAI, and a fake provider, built on the official Go SDKs
 - `console/` - Interactive REPL using Bubbletea TUI framework (partially implemented)
 - `tool/` - Agent tools (git, cat, files, create, insert) + LSP and MCP integrations
 - `templates/` - Dual template engine (Go templates, Pongo2) with XML-based prompt structure
 
 ### Key Libraries
-- `charm.land/fantasy` - Unified LLM interface with streaming and agent tools
+- `github.com/anthropics/anthropic-sdk-go` - Official Anthropic SDK (Messages API)
+- `github.com/openai/openai-go` - Official OpenAI SDK (chat completions)
 - `github.com/alecthomas/kong` - CLI framework
 - `github.com/charmbracelet/bubbletea` - Terminal UI
 - `github.com/elek/lspc` - LSP client for code understanding

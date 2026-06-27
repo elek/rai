@@ -3,21 +3,21 @@ package cmd
 import (
 	"fmt"
 
-	"charm.land/fantasy"
 	"github.com/elek/catwalk-open/providers"
+	"github.com/elek/rai/llm"
 )
 
-func printUsage(fm fantasy.LanguageModel, usage fantasy.Usage) {
-	fmt.Println("model:", fm.Model())
+func printUsage(model llm.Model, usage llm.Usage) {
+	fmt.Println("model:", model.Name())
 	fmt.Println("usage:", usage)
 	for _, provider := range providers.GetAll() {
-		if string(provider.ID) != fm.Provider() {
+		if string(provider.ID) != model.Provider() {
 			continue
 		}
-		for _, model := range provider.Models {
-			if model.ID == fm.Model() {
-				fmt.Println("Costs (1m):", model.CostPer1MIn, "USD in,", model.CostPer1MOut, "USD out")
-				fmt.Printf("cost: %0.02f USD", model.CostPer1MIn*float64(usage.InputTokens)/1_000_000+model.CostPer1MOut*float64(usage.OutputTokens)/1_000_000)
+		for _, m := range provider.Models {
+			if m.ID == model.Name() {
+				fmt.Println("Costs (1m):", m.CostPer1MIn, "USD in,", m.CostPer1MOut, "USD out")
+				fmt.Printf("cost: %0.02f USD", m.CostPer1MIn*float64(usage.InputTokens)/1_000_000+m.CostPer1MOut*float64(usage.OutputTokens)/1_000_000)
 				break
 			}
 		}
