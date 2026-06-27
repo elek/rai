@@ -27,7 +27,7 @@ func RenderPrompt(tmpl string, args []string) (Render, error) {
 		rendered, err = RenderPongo2(tmpl, map[string]any{
 			"Args": args,
 		})
-		
+
 	default:
 		return Render{}, errors.Errorf("unknown template engine: %s", templateEngine)
 	}

@@ -6,7 +6,7 @@ import (
 )
 
 type GitInput struct {
-	Command string `json:"command" description:"The git command to execute including git itself as. For example, "git status" or "git commit -m 'fix bug'"`
+	Command string `json:"command" description:"The git command to execute including git itself as. For example: git status"`
 }
 
 func Git(input GitInput) string {

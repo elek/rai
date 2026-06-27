@@ -124,8 +124,8 @@ type UsageInfo struct {
 
 // RaiMeta contains rai-specific metadata including cost and model usage details.
 type RaiMeta struct {
-	TotalCostUSD float64                  `json:"totalCostUsd"`
-	Model        string                   `json:"model"`
+	TotalCostUSD float64                    `json:"totalCostUsd"`
+	Model        string                     `json:"model"`
 	ModelUsage   map[string]*ModelUsageInfo `json:"modelUsage"`
 }
 
