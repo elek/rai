@@ -1,23 +1,17 @@
 # RAI - LLM from CLI
 
-A command-line tool for interacting with multiple LLM providers. Supports Anthropic, Google (Gemini/Vertex AI), and OpenRouter with agent tools, template-based prompts, LSP, and MCP integrations.
+A headless agentic loop, supporting scripting, tools, template-based prompts, LSP, and MCP integrations.
 
 ## Status
-
-** IMPORTANT **
-
- 1. Code is published in __snapshot source-available__ mode, the Git history is not shared. Iternal Git history represents the snapshots of agentic development and not shared.
- 2. This code is not indented to be a production-ready code. If you (or your assistant) can read code: you are welcome. If not, this is probably not for you. 
-
 ## Features
 
-- **Multi-provider support** - Anthropic (Claude), Google (Gemini API & Vertex AI), OpenRouter
+- **Multi-provider support** - Anthropic (Claude), OpenAI
 - **Agent tools** - Built-in tools for git, file reading/listing/creation, and file editing
 - **Template system** - Custom prompt templates with Go templates or Pongo2 (Django-style)
 - **LSP integration** - Language Server Protocol support for code understanding (e.g., gopls)
 - **MCP integration** - Model Context Protocol for connecting external tools
 - **Streaming output** - Token-by-token response streaming with usage/cost reporting
-- **Interactive mode** - Terminal-based REPL conversation (work in progress)
+- **ACP mode ** - Can be used as an ACP backend
 
 ## Installation
 
