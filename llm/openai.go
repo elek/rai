@@ -41,7 +41,7 @@ func (m *openaiModel) Stream(ctx context.Context, req Request, onText func(delta
 		StreamOptions: openai.ChatCompletionStreamOptionsParam{IncludeUsage: openai.Bool(true)},
 	}
 	if m.maxTokens > 0 {
-		params.MaxTokens = openai.Int(m.maxTokens)
+		params.MaxCompletionTokens = openai.Int(m.maxTokens)
 	}
 	if req.Temperature > 0 {
 		params.Temperature = openai.Float(req.Temperature)
