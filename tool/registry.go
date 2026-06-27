@@ -67,7 +67,7 @@ func AllTools() (res []fantasy.AgentTool) {
 	})
 	res = append(res, bash)
 
-	skill := fantasy.NewAgentTool[SkillInput]("skill", "List available skills or read a skill template by name", func(ctx context.Context, input SkillInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+	skill := fantasy.NewAgentTool[SkillInput]("skill", SkillToolDescription(), func(ctx context.Context, input SkillInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
 		res := Skill(input)
 		return fantasy.ToolResponse{
 			Content: res,
