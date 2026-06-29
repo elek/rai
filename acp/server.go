@@ -277,12 +277,10 @@ func (s *Server) handlePrompt(req Request) (any, *RPCError) {
 					SessionID: params.SessionID,
 					Update: SessionUpdateParams{
 						SessionUpdate: "tool_call",
-						ToolCall: &ToolCall{
-							ToolCallID: tcID,
-							Title:      name,
-							Kind:       toolKind(name),
-							Status:     "in_progress",
-						},
+						ToolCallID:    tcID,
+						Title:         name,
+						Kind:          toolKind(name),
+						Status:        "in_progress",
 					},
 				},
 			})

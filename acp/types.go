@@ -153,18 +153,11 @@ type SessionUpdateNotification struct {
 type SessionUpdateParams struct {
 	SessionUpdate     string             `json:"sessionUpdate"`
 	Content           *ContentBlock      `json:"content,omitempty"`
-	ToolCall          *ToolCall          `json:"toolCall,omitempty"`
 	ToolCallID        string             `json:"toolCallId,omitempty"`
+	Title             string             `json:"title,omitempty"`
+	Kind              string             `json:"kind,omitempty"`
 	Status            string             `json:"status,omitempty"`
 	AvailableCommands []AvailableCommand `json:"availableCommands,omitempty"`
-}
-
-// ToolCall represents a tool invocation within a session update notification.
-type ToolCall struct {
-	ToolCallID string `json:"toolCallId"`
-	Title      string `json:"title"`
-	Kind       string `json:"kind,omitempty"`
-	Status     string `json:"status"`
 }
 
 // AvailableCommand describes a command the agent can execute.

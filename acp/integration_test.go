@@ -10,10 +10,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/elek/rai/config"
+	"github.com/elek/rai/llm"
+	"github.com/elek/rai/templates"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -175,6 +178,78 @@ func drivePromptFlow(t *testing.T, client *acpClient) {
 	assert.Equal(t, "end_turn", promptResult.StopReason)
 	require.NotNil(t, promptResult.Usage)
 	assert.Positive(t, promptResult.Usage.OutputTokens)
+}
+
+// gitToolCommandInput mirrors the git tool's JSON input schema.
+type gitToolCommandInput struct {
+	Command string `json:"command"`
+}
+
+// TestACPCommitFlowRunsToolsAndReportsToolCalls drives a "commit" prompt through
+// the ACP server with a git tool registered. The fake provider responds to
+// "commit" with git tool calls, so this verifies (a) the agent actually invokes
+// the tools and (b) each tool_call notification carries a populated top-level
+// toolCallId and title, as the ACP spec and clients like acpp expect.
+func TestACPCommitFlowRunsToolsAndReportsToolCalls(t *testing.T) {
+	var mu sync.Mutex
+	var commands []string
+	gitTool := llm.NewTool[gitToolCommandInput]("git", "Execute any git command",
+		func(_ context.Context, in gitToolCommandInput) (string, error) {
+			mu.Lock()
+			commands = append(commands, in.Command)
+			mu.Unlock()
+			return "ok", nil
+		})
+
+	srv := NewServer(&templates.ParsedTemplate{Tools: []llm.Tool{gitTool}})
+	srv.SetConfig(fakeConfig())
+
+	client := newACPClient(t, srv)
+	defer client.close()
+
+	client.send(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"acpp-test"}}}`)
+	initResp, _ := client.readUntilResponse(1)
+	require.Nil(t, initResp.Error)
+
+	client.send(`{"jsonrpc":"2.0","id":2,"method":"session/new","params":{"cwd":"/tmp","mcpServers":[]}}`)
+	sessResp, _ := client.readUntilResponse(2)
+	require.Nil(t, sessResp.Error)
+	resultBytes, err := json.Marshal(sessResp.Result)
+	require.NoError(t, err)
+	var sessResult NewSessionResult
+	require.NoError(t, json.Unmarshal(resultBytes, &sessResult))
+
+	client.send(`{"jsonrpc":"2.0","id":3,"method":"session/prompt","params":{"sessionId":"` +
+		sessResult.SessionID + `","prompt":[{"type":"text","text":"please commit my work"}]}}`)
+	promptResp, notifs := client.readUntilResponse(3)
+	require.Nil(t, promptResp.Error)
+
+	// The agent must have actually executed both git commands.
+	mu.Lock()
+	got := append([]string(nil), commands...)
+	mu.Unlock()
+	require.Len(t, got, 2, "expected git add and git commit to run")
+	assert.Equal(t, "git add -A", got[0])
+	assert.Contains(t, got[1], "git commit -m")
+
+	// Each tool_call notification must carry top-level toolCallId and title.
+	var toolCalls int
+	for _, n := range notifs {
+		if n.Method != "session/update" {
+			continue
+		}
+		paramBytes, err := json.Marshal(n.Params)
+		require.NoError(t, err)
+		var upd SessionUpdateNotification
+		require.NoError(t, json.Unmarshal(paramBytes, &upd))
+		if upd.Update.SessionUpdate != "tool_call" {
+			continue
+		}
+		toolCalls++
+		assert.NotEmpty(t, upd.Update.ToolCallID, "tool_call must have a top-level toolCallId")
+		assert.Equal(t, "git", upd.Update.Title, "tool_call must have a top-level title")
+	}
+	assert.Equal(t, 2, toolCalls, "expected two tool_call notifications")
 }
 
 // TestACPFullPromptFlow exercises the same path as `acpp cat "rai acp"`,
