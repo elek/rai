@@ -165,6 +165,22 @@ times and confirm it no longer degenerates.
 - Backward compatibility: no change to `type: openai`; existing configs work.
 - Context cancellation: the stream loop honors `ctx`/`stream.Err()`.
 
+## Implementation notes (from live-API validation)
+
+Two things the real Responses API enforced, both now covered by tests:
+
+- **Strict tool schema.** Unlike Chat Completions, the Responses API rejects a
+  function schema whose `required` is `null` or whose `properties` is `null`
+  (`"None is not of type 'array'"`). `toResponsesTools` normalizes a param-less
+  tool's nil slice/map to `[]`/`{}`.
+- **Assistant text in tool-call turns.** When the model emits visible text
+  alongside its reasoning and tool calls, that `BlockText` is mapped to an
+  assistant-role message so it is preserved (not dropped) in the round-trip.
+
+Validated end to end: `gpt-5.5` over the Responses API completes the multi-turn
+`review` scenario coherently, where the same model on Chat Completions
+intermittently degenerated.
+
 ## Scope (YAGNI)
 
 Deferred: a `reasoning_effort` config knob, streaming/displaying reasoning

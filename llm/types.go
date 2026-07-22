@@ -39,6 +39,12 @@ const (
 	BlockToolUse BlockType = "tool_use"
 	// BlockToolResult is the result of a tool call, sent back to the model.
 	BlockToolResult BlockType = "tool_result"
+	// BlockReasoning carries a reasoning item produced by a reasoning model. Its
+	// content is opaque (provider-encrypted) and exists only to be sent back on
+	// later turns so the model retains its chain of thought across tool calls.
+	// It is never streamed or displayed; providers that don't understand it
+	// ignore it. ToolCallID holds the item id, Text holds the encrypted content.
+	BlockReasoning BlockType = "reasoning"
 )
 
 // Block is a single piece of message content. Which fields are meaningful

@@ -18,7 +18,7 @@ type WithModel struct {
 
 // NewModel creates a Model from the given config and model definition. Supported
 // provider types in this phase are: anthropic, openai (and openai-compatible),
-// and fake.
+// openai-responses (the OpenAI Responses API, for reasoning models), and fake.
 func NewModel(ctx context.Context, cfg config.Config, model config.Model) (Model, error) {
 	p, found := cfg.FindProvider(model.Provider)
 	if !found {
@@ -33,6 +33,8 @@ func NewModel(ctx context.Context, cfg config.Config, model config.Model) (Model
 		return NewAnthropicModel(p.Key, p.Endpoint, model.Model, maxTokens, model.Debug), nil
 	case "openai", "openaicompat":
 		return NewOpenAIModel(p.Key, p.Endpoint, model.Model, maxTokens, model.Debug), nil
+	case "openai-responses":
+		return NewOpenAIResponsesModel(p.Key, p.Endpoint, model.Model, maxTokens, model.Debug), nil
 	case "google", "openrouter":
 		return nil, errors.New("provider type not supported in this phase: " + p.Type)
 	default:
