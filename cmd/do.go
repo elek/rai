@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/elek/rai/config"
 	"github.com/elek/rai/llm"
 	"github.com/elek/rai/templates"
 	"github.com/mattn/go-isatty"
@@ -48,6 +49,14 @@ func (a Do) Run() error {
 		cb = e.ExecPrompt
 	}
 
+	// A --model/--provider flag on the CLI takes precedence over the template's
+	// <model> tag; when unset, the template's choice (or the default) is used.
+	cliModel, err := a.ResolveModel(cfg)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	cb = withModelOverride(cb, cliModel)
+
 	args := map[string]interface{}{
 		"Args": a.Args,
 	}
@@ -62,4 +71,17 @@ func (a Do) Run() error {
 	_, err = templates.GoTemplateRender(cfg)(ctx, promptContent, args, cb)
 
 	return errors.WithStack(err)
+}
+
+// withModelOverride wraps an AgentCallback so that a non-empty model forces the
+// model used for the call, overriding whatever the template resolved. When
+// model is the zero value the template's model (passed by the renderer) is left
+// untouched.
+func withModelOverride(base llm.AgentCallback, model config.Model) llm.AgentCallback {
+	return func(ctx context.Context, templateModel config.Model, system string, prompt string, tools []llm.Tool) (string, error) {
+		if model != (config.Model{}) {
+			templateModel = model
+		}
+		return base(ctx, templateModel, system, prompt, tools)
+	}
 }
