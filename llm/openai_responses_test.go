@@ -3,12 +3,57 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/openai/openai-go/responses"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// sseServer serves the given event-stream body for any request, so a model
+// pointed at its URL consumes exactly these streamed events.
+func sseServer(t *testing.T, body string) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, body)
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestStreamReturnsErrorWhenResponseIncomplete(t *testing.T) {
+	// A reasoning model whose reasoning exhausts max_output_tokens terminates the
+	// stream with response.incomplete and emits no message item. The previous
+	// behavior silently produced empty text; the run must instead surface the
+	// truncation with its reason so it is not mistaken for a real empty answer.
+	body := "data: " + `{"type":"response.output_item.done","sequence_number":1,"output_index":0,"item":{"type":"reasoning","id":"rs_1","encrypted_content":"ENC","summary":[]}}` + "\n\n" +
+		"data: " + `{"type":"response.incomplete","sequence_number":2,"response":{"id":"resp_1","status":"incomplete","incomplete_details":{"reason":"max_output_tokens"}}}` + "\n\n"
+	srv := sseServer(t, body)
+
+	model := NewOpenAIResponsesModel("test-key", srv.URL, "gpt-5.5", 1024, false)
+	_, err := model.Stream(context.Background(), Request{Messages: []Message{UserMessage("hi")}}, nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "incomplete")
+	assert.Contains(t, err.Error(), "max_output_tokens")
+}
+
+func TestStreamReturnsErrorWhenResponseFailed(t *testing.T) {
+	// A response.failed terminal event must propagate its error, not be swallowed.
+	body := "data: " + `{"type":"response.failed","sequence_number":1,"response":{"id":"resp_1","status":"failed","error":{"code":"server_error","message":"boom"}}}` + "\n\n"
+	srv := sseServer(t, body)
+
+	model := NewOpenAIResponsesModel("test-key", srv.URL, "gpt-5.5", 1024, false)
+	_, err := model.Stream(context.Background(), Request{Messages: []Message{UserMessage("hi")}}, nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed")
+	assert.Contains(t, err.Error(), "boom")
+}
 
 // unmarshalInputItems marshals the responses input list and re-decodes it into a
 // generic slice so tests can assert on the wire shape without depending on SDK

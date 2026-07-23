@@ -2,14 +2,12 @@ package cmd
 
 import (
 	"context"
-	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/elek/rai/config"
 	"github.com/elek/rai/llm"
 	"github.com/elek/rai/templates"
-	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
 )
 
@@ -61,13 +59,13 @@ func (a Do) Run() error {
 		"Args": a.Args,
 	}
 
-	if !isatty.IsTerminal(os.Stdin.Fd()) && !isatty.IsCygwinTerminal(os.Stdin.Fd()) {
-		stdinBytes, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-		args["Stdin"] = string(stdinBytes)
-	}
+	//if !isatty.IsTerminal(os.Stdin.Fd()) && !isatty.IsCygwinTerminal(os.Stdin.Fd()) {
+	//	stdinBytes, err := io.ReadAll(os.Stdin)
+	//	if err != nil {
+	//		return errors.WithStack(err)
+	//	}
+	//	args["Stdin"] = string(stdinBytes)
+	//}
 	_, err = templates.GoTemplateRender(cfg)(ctx, promptContent, args, cb)
 
 	return errors.WithStack(err)

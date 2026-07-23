@@ -83,6 +83,20 @@ func (m *openaiResponsesModel) Stream(ctx context.Context, req Request, onText f
 		case "response.completed":
 			u := event.AsResponseCompleted().Response.Usage
 			usage = Usage{InputTokens: u.InputTokens, OutputTokens: u.OutputTokens, TotalTokens: u.TotalTokens}
+		case "response.incomplete":
+			// The response was cut off before finishing. For a reasoning model the
+			// usual reason is max_output_tokens: reasoning tokens count against that
+			// budget, so a large reasoning burst can exhaust it before any message
+			// is emitted, leaving a reasoning item but no answer. Surface it rather
+			// than returning empty text that reads as a silent failure.
+			reason := event.AsResponseIncomplete().Response.IncompleteDetails.Reason
+			if reason == "" {
+				reason = "unspecified"
+			}
+			return nil, errors.Errorf("response incomplete: %s (raise the model's max_token)", reason)
+		case "response.failed":
+			e := event.AsResponseFailed().Response.Error
+			return nil, errors.Errorf("response failed: %s: %s", e.Code, e.Message)
 		case "error":
 			e := event.AsError()
 			return nil, errors.Errorf("responses stream error: %s", e.Message)
